@@ -111,11 +111,16 @@ endif(TESTING)
 if(SECURE)
   MESSAGE(STATUS "Encryption is enabled. This is an experimental feature and may break things.")
   add_definitions(-DSECURE=true)
-  #TODO: look for, and enable linking with OpenSSL (-lssl -lcrypto)
+  find_library(SSL_LIB ssl)
+
+  if(NOT SSL_LIB)
+    message(FATAL_ERROR "openssl not found")
+  endif()
+
+  set(LIBRARIES ${LIBRARIES} ssl crypto)
 else(SECURE)
   MESSAGE(STATUS "Encryption is disabled. Compiling without AES/OpenSSL support")
   add_definitions(-DSECURE=false)
-  set(LIBRARIES ${LIBRARIES} ssl crypto)
 endif(SECURE)
 
 # Link-time optimization
@@ -156,7 +161,12 @@ set(SOURCES
   src/transport_impl/raw/raw_transport.cc
   src/transport_impl/raw/raw_transport_datapath.cc
   src/util/huge_alloc.cc
-  src/util/tls_registry.cc)
+  src/util/tls_registry.cc
+  )
+
+if(SECURE)
+  set(SOURCES ${SOURCES} src/crypto/crypto.cc)
+endif(SECURE)
 
 # Transport-specific. Mellanox OFED drivers are the best choice for raw and
 # infiniband, but they do not play well with DPDK. So we compile only one
