@@ -29,7 +29,7 @@ void req_handler(ReqHandle *req_handle, void *_c) {
   if (config_num_bg_threads > 0) assert(c->rpc->in_background());
 
   const MsgBuffer *req_msgbuf = req_handle->get_req_msgbuf();
-  size_t resp_size = req_msgbuf->get_data_size();
+  size_t resp_size = req_msgbuf->get_app_data_size();
 
   req_handle->dyn_resp_msgbuf = c->rpc->alloc_msg_buffer_or_die(resp_size);
   memcpy(req_handle->dyn_resp_msgbuf.buf, req_msgbuf->buf, resp_size);
@@ -51,10 +51,10 @@ void cont_func(void *_c, void *_tag) {
   auto tag = reinterpret_cast<size_t>(_tag);
   const MsgBuffer &resp_msgbuf = c->resp_msgbufs[tag];
   test_printf("Client: Received response of length %zu.\n",
-              resp_msgbuf.get_data_size());
+              resp_msgbuf.get_app_data_size());
 
-  assert(resp_msgbuf.get_data_size() == c->req_msgbufs[tag].get_data_size());
-  for (size_t i = 0; i < resp_msgbuf.get_data_size(); i++) {
+  assert(resp_msgbuf.get_app_data_size() == c->req_msgbufs[tag].get_app_data_size());
+  for (size_t i = 0; i < resp_msgbuf.get_app_data_size(); i++) {
     assert(resp_msgbuf.buf[i] == static_cast<uint8_t>(tag));
   }
 
@@ -97,7 +97,7 @@ void generic_test_func(Nexus *nexus, size_t) {
         MsgBuffer &cur_req_msgbuf = c.req_msgbufs[iter_req_i];
 
         size_t req_size = get_rand_msg_size(
-            &c.fastrand, rpc->get_max_data_per_pkt(), rpc->get_max_msg_size());
+            &c.fastrand, rpc->max_app_data_size_for_packets(1u), rpc->get_max_msg_size());
 
         rpc->resize_msg_buffer(&cur_req_msgbuf, req_size);
         memset(cur_req_msgbuf.buf, static_cast<uint8_t>(iter_req_i), req_size);

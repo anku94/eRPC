@@ -7,6 +7,8 @@
 #define CRYPTO_IV_LEN 12
 #define CRYPTO_TAG_LEN 16
 
+#define CRYPTO_HDR_LEN (CRYPTO_IV_LEN + CRYPTO_TAG_LEN)
+
 #define CRYPTO_VERBOSE 1
 
 namespace erpc {

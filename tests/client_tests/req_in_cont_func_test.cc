@@ -38,7 +38,7 @@ void req_handler(ReqHandle *req_handle, void *_c) {
   assert(!c->is_client);
 
   const MsgBuffer *req_msgbuf = req_handle->get_req_msgbuf();
-  size_t req_size = req_msgbuf->get_data_size();
+  size_t req_size = req_msgbuf->get_app_data_size();
 
   // eRPC will free the MsgBuffer
   req_handle->dyn_resp_msgbuf = c->rpc->alloc_msg_buffer_or_die(req_size);
@@ -60,7 +60,7 @@ void enqueue_request_helper(AppContext *c, size_t msgbuf_i) {
   assert(msgbuf_i < kSessionReqWindow);
 
   size_t req_size =
-      get_rand_msg_size(&c->fast_rand, c->rpc->get_max_data_per_pkt(),
+      get_rand_msg_size(&c->fast_rand, c->rpc->max_app_data_size_for_packets(1u),
                         c->rpc->get_max_msg_size());
   c->rpc->resize_msg_buffer(&c->req_msgbufs[msgbuf_i], req_size);
 
@@ -84,9 +84,9 @@ void cont_func(void *_c, void *_tag) {
 
   const MsgBuffer &resp_msgbuf = c->resp_msgbufs[tag.s.msgbuf_i];
   test_printf("Client: Received response for req %u, length = %zu.\n",
-              tag.s.req_i, resp_msgbuf.get_data_size());
+              tag.s.req_i, resp_msgbuf.get_app_data_size());
 
-  ASSERT_EQ(resp_msgbuf.get_data_size(), static_cast<tag_t>(tag).s.req_size);
+  ASSERT_EQ(resp_msgbuf.get_app_data_size(), static_cast<tag_t>(tag).s.req_size);
   c->num_rpc_resps++;
 
   if (c->num_reqs_sent < kTestNumReqs) {
