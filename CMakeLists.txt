@@ -120,7 +120,6 @@ if(SECURE)
   set(LIBRARIES ${LIBRARIES} ssl crypto)
 else(SECURE)
   MESSAGE(STATUS "Encryption is disabled. Compiling without AES/OpenSSL support")
-  add_definitions(-DSECURE=false)
 endif(SECURE)
 
 # Link-time optimization
