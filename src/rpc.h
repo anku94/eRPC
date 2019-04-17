@@ -566,7 +566,7 @@ public:
    * @return The number of packets required
    */
   static inline size_t num_pkts_for_app_data_size(size_t app_data_size) {
-#ifdef CRYPTO
+#ifdef SECURE
     app_data_size += CRYPTO_HDR_LEN;
 #endif
     if (app_data_size <= TTr::kMaxDataPerPkt) return 1;
@@ -581,7 +581,8 @@ public:
   static inline size_t max_app_data_size_for_packets(size_t n_packets) {
     size_t max_data_size = TTr::kMaxDataPerPkt * n_packets;
 
-#ifdef CRYPTO
+
+#ifdef SECURE
     return max_data_size - CRYPTO_HDR_LEN;
 #else
     return max_data_size;

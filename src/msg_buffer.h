@@ -5,7 +5,7 @@
 #include "util/buffer.h"
 #include "util/math_utils.h"
 
-#ifdef CRYPTO
+#ifdef SECURE
 #include "crypto.h"
 #endif
 
@@ -156,7 +156,7 @@ class MsgBuffer {
    * smaller than it's maximum data capacity due to resizing.
    */
   inline size_t get_app_data_size() const {
-#ifdef CRYPTO
+#ifdef SECURE
     return data_size - CRYPTO_HDR_LEN;
 #else
     return data_size;
