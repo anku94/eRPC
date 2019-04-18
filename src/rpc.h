@@ -79,11 +79,15 @@ class Rpc {
   /// Timeout for a session management request in milliseconds
   static constexpr size_t kSMTimeoutMs = kTesting ? 10 : 100;
 
- public:
   /// Max request or response *data* size, i.e., excluding packet headers
+  // Any function that uses it needs to be SECURE-aware, or
+  // operate at transport layer
   static constexpr size_t kMaxMsgSize =
       HugeAlloc::kMaxClassSize -
       ((HugeAlloc::kMaxClassSize / TTr::kMaxDataPerPkt) * sizeof(pkthdr_t));
+
+ public:
+
   static_assert((1 << kMsgSizeBits) >= kMaxMsgSize, "");
   static_assert((1 << kPktNumBits) * TTr::kMaxDataPerPkt > 2 * kMaxMsgSize, "");
 
@@ -133,6 +137,7 @@ class Rpc {
     assert(max_data_size > 0);  // Doesn't work for max_data_size = 0
 
 #ifdef SECURE
+    fprintf(stderr, "allocing to: %zu + 28\n", max_data_size);
       max_data_size += CRYPTO_HDR_LEN;
 #endif
 
@@ -172,6 +177,12 @@ class Rpc {
 #ifdef SECURE
     new_data_size += CRYPTO_HDR_LEN;
 #endif
+
+    fprintf(stderr, "Resize to: %zu, max: %zu\n", new_data_size, msg_buffer->max_data_size);
+
+    if (new_data_size > msg_buffer->max_data_size) {
+      print_trace();
+    }
 
     assert(new_data_size <= msg_buffer->max_data_size);
 
@@ -369,7 +380,13 @@ class Rpc {
   }
 
   /// Return the data size in bytes that can be sent in one request or response
-  static inline size_t get_max_msg_size() { return kMaxMsgSize; }
+  static inline size_t get_max_msg_size() {
+#ifdef CRYPTO
+    return kMaxMsgSize - CRYPTO_HDR_LEN;
+#else
+    return kMaxMsgSize;
+#endif
+  }
 
   /// Return the ID of this Rpc object
   inline uint8_t get_rpc_id() const { return rpc_id; }
@@ -580,6 +597,8 @@ public:
    */
   static inline size_t max_app_data_size_for_packets(size_t n_packets) {
     size_t max_data_size = TTr::kMaxDataPerPkt * n_packets;
+
+    fprintf(stderr, "Transport Max Data Pkt: %zu\n", max_data_size);
 
 
 #ifdef SECURE
@@ -1102,7 +1121,11 @@ private:
   /// Size of the preallocated response buffer. This is one packet by default,
   /// but some applications might benefit from a larger preallocated buffer,
   /// at the expense of increased memory utilization.
+#ifdef SECURE
+  size_t pre_resp_msgbuf_size = TTr::kMaxDataPerPkt - CRYPTO_HDR_LEN;
+#else
   size_t pre_resp_msgbuf_size = TTr::kMaxDataPerPkt;
+#endif
 };
 
 // This goes at the end of every Rpc implementation file to force compilation

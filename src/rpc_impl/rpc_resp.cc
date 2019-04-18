@@ -93,9 +93,16 @@ void Rpc<TTr>::process_resp_one_st(SSlot *sslot, const pkthdr_t *pkthdr,
   ci.num_rx++;
   ci.progress_tsc = ev_loop_tsc;
 
+// TODO: Ensure that resizing resp buffer to req buffer - hdrlen does
+// not cause overwrites/memory corruption anywhere
+
   // Special handling for single-packet responses
   if (likely(pkthdr->msg_size <= TTr::kMaxDataPerPkt)) {
+#ifdef SECURE
+    resize_msg_buffer(resp_msgbuf, pkthdr->msg_size - CRYPTO_HDR_LEN);
+#else
     resize_msg_buffer(resp_msgbuf, pkthdr->msg_size);
+#endif
 
     // Copy eRPC header and data, but not Transport headroom
     memcpy(resp_msgbuf->get_pkthdr_0()->ehdrptr(), pkthdr->ehdrptr(),
@@ -108,7 +115,12 @@ void Rpc<TTr>::process_resp_one_st(SSlot *sslot, const pkthdr_t *pkthdr,
 
     if (pkthdr->pkt_num == req_msgbuf->num_pkts - 1) {
       // This is the first response packet. Size the response and copy header.
+#ifdef SECURE
+      resize_msg_buffer(resp_msgbuf, pkthdr->msg_size - CRYPTO_HDR_LEN);
+#else
       resize_msg_buffer(resp_msgbuf, pkthdr->msg_size);
+#endif
+
       memcpy(resp_msgbuf->get_pkthdr_0()->ehdrptr(), pkthdr->ehdrptr(),
              sizeof(pkthdr_t) - kHeadroom);
     }

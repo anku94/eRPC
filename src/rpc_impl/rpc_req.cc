@@ -139,6 +139,7 @@ void Rpc<TTr>::process_small_req_st(SSlot *sslot, pkthdr_t *pkthdr) {
   } else {
     // For background request handlers, we need a RX ring--independent copy of
     // the request. The allocated req_msgbuf is freed by the background thread.
+    fprintf(stderr, "===> Pkthdr msg size: %zu\n", pkthdr->msg_size);
     req_msgbuf = alloc_msg_buffer(pkthdr->msg_size);
     assert(req_msgbuf.buf != nullptr);
     memcpy(req_msgbuf.get_pkthdr_0(), pkthdr,
