@@ -121,7 +121,7 @@ class Rpc {
    *
    * @return The allocated message buffer
    */
-  inline MsgBuffer alloc_app_msg_buffer(size_t max_data_size) {
+  inline MsgBuffer alloc_msg_buffer(size_t max_data_size) {
     assert(max_data_size > 0);  // Doesn't work for max_data_size = 0
 
 #ifdef SECURE
@@ -129,7 +129,7 @@ class Rpc {
       max_data_size += CRYPTO_HDR_LEN;
 #endif
 
-    return alloc_msg_buffer(max_data_size);
+    return _alloc_msg_buffer(max_data_size);
   }
     /**
      * @brief Create a hugepage-backed buffer for storing request or response
@@ -152,7 +152,7 @@ class Rpc {
      * although it sets the magic field in the zeroth header.
      */
 
-  inline MsgBuffer alloc_msg_buffer(size_t max_data_size) {
+  inline MsgBuffer _alloc_msg_buffer(size_t max_data_size) {
     // This function avoids division for small data sizes
     size_t max_num_pkts = _data_size_to_num_pkts(max_data_size);
 
@@ -302,7 +302,7 @@ class Rpc {
   inline void run_event_loop_once() { run_event_loop_do_one_st(); }
 
   /// Identical to alloc_msg_buffer(), but throws an exception on failure
-  inline MsgBuffer alloc_app_msg_buffer_or_die(size_t max_data_size) {
+  inline MsgBuffer alloc_msg_buffer_or_die(size_t max_data_size) {
     MsgBuffer m = alloc_msg_buffer(max_data_size);
     rt_assert(m.buf != nullptr);
     return m;

@@ -140,7 +140,15 @@ void Rpc<TTr>::process_small_req_st(SSlot *sslot, pkthdr_t *pkthdr) {
     // For background request handlers, we need a RX ring--independent copy of
     // the request. The allocated req_msgbuf is freed by the background thread.
     fprintf(stderr, "===> Pkthdr msg size: %zu\n", pkthdr->msg_size);
+#ifdef SECURE
+    // Dirty hack, ideally there should be two alloc_msg_buffer's
+    // One that transparently allocates a SECURE_HEADER, used by apps
+    // And another that allocates the desired message bytes, used by the
+    // transport layer
+    req_msgbuf = alloc_msg_buffer(pkthdr->msg_size - CRYPTO_HDR_LEN);
+#else
     req_msgbuf = alloc_msg_buffer(pkthdr->msg_size);
+#endif
     assert(req_msgbuf.buf != nullptr);
     memcpy(req_msgbuf.get_pkthdr_0(), pkthdr,
            pkthdr->msg_size + sizeof(pkthdr_t));
