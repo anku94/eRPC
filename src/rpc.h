@@ -113,27 +113,15 @@ class Rpc {
   /// Destroy the Rpc from a foreground thread
   ~Rpc();
 
-  /**
-   * @brief Create a hugepage-backed buffer for storing request or response
-   * messages.
+  /*
+   * @brief Call alloc_msg_buffer, but allocate space for SECURE
+   * header if needed. This function should be used by all apps
    *
-   * @param max_data_size If this call is successful, the returned MsgBuffer
-   * contains space for this many application data bytes. The MsgBuffer should
-   * be resized with resize_msg_buffer() when used for smaller requests or
-   * responses.
+   * @param max_data_size. See alloc_msg_buffer
    *
-   * @return The allocated message buffer. The returned message buffer is
-   * invalid (i.e., its MsgBuffer.buf is null) if we ran out of hugepage memory.
-   *
-   * @throw runtime_error if \p size is too large for the allocator, or if
-   * hugepage reservation failure is catastrophic. An exception is *not* thrown
-   * if allocation fails simply because we ran out of memory.
-   *
-   * \note The returned MsgBuffer's \p buf is surrounded by packet headers for
-   * internal use by eRPC. This function does not fill in packet headers,
-   * although it sets the magic field in the zeroth header.
+   * @return The allocated message buffer
    */
-  inline MsgBuffer alloc_msg_buffer(size_t max_data_size) {
+  inline MsgBuffer alloc_app_msg_buffer(size_t max_data_size) {
     assert(max_data_size > 0);  // Doesn't work for max_data_size = 0
 
 #ifdef SECURE
@@ -141,12 +129,36 @@ class Rpc {
       max_data_size += CRYPTO_HDR_LEN;
 #endif
 
+    return alloc_msg_buffer(max_data_size);
+  }
+    /**
+     * @brief Create a hugepage-backed buffer for storing request or response
+     * messages.
+     *
+     * @param max_data_size If this call is successful, the returned MsgBuffer
+     * contains space for this many application data bytes. The MsgBuffer should
+     * be resized with resize_msg_buffer() when used for smaller requests or
+     * responses.
+     *
+     * @return The allocated message buffer. The returned message buffer is
+     * invalid (i.e., its MsgBuffer.buf is null) if we ran out of hugepage memory.
+     *
+     * @throw runtime_error if \p size is too large for the allocator, or if
+     * hugepage reservation failure is catastrophic. An exception is *not* thrown
+     * if allocation fails simply because we ran out of memory.
+     *
+     * \note The returned MsgBuffer's \p buf is surrounded by packet headers for
+     * internal use by eRPC. This function does not fill in packet headers,
+     * although it sets the magic field in the zeroth header.
+     */
+
+  inline MsgBuffer alloc_msg_buffer(size_t max_data_size) {
     // This function avoids division for small data sizes
     size_t max_num_pkts = _data_size_to_num_pkts(max_data_size);
 
     lock_cond(&huge_alloc_lock);
     Buffer buffer =
-        huge_alloc->alloc(max_data_size + (max_num_pkts * sizeof(pkthdr_t)));
+            huge_alloc->alloc(max_data_size + (max_num_pkts * sizeof(pkthdr_t)));
     unlock_cond(&huge_alloc_lock);
 
     if (unlikely(buffer.buf == nullptr)) {
@@ -290,7 +302,7 @@ class Rpc {
   inline void run_event_loop_once() { run_event_loop_do_one_st(); }
 
   /// Identical to alloc_msg_buffer(), but throws an exception on failure
-  inline MsgBuffer alloc_msg_buffer_or_die(size_t max_data_size) {
+  inline MsgBuffer alloc_app_msg_buffer_or_die(size_t max_data_size) {
     MsgBuffer m = alloc_msg_buffer(max_data_size);
     rt_assert(m.buf != nullptr);
     return m;
