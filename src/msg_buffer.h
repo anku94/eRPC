@@ -165,7 +165,7 @@ class MsgBuffer {
    * smaller than it's maximum data capacity due to resizing.
    */
   inline size_t get_app_data_size() const {
-    fprintf(stderr, "Real data size: %zu\n", data_size);
+    // fprintf(stderr, "Real data size: %zu\n", data_size);
 #ifdef SECURE
     return data_size - CRYPTO_HDR_LEN;
 #else

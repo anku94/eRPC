@@ -219,7 +219,12 @@ void Rpc<TTr>::process_large_req_one_st(SSlot *sslot, const pkthdr_t *pkthdr) {
     // cur_req_num as unavailable.
     bury_resp_msgbuf_server_st(sslot);
 
+#ifdef SECURE
+    req_msgbuf = alloc_msg_buffer(pkthdr->msg_size - CRYPTO_HDR_LEN);
+#else
     req_msgbuf = alloc_msg_buffer(pkthdr->msg_size);
+#endif
+
     assert(req_msgbuf.buf != nullptr);
     *(req_msgbuf.get_pkthdr_0()) = *pkthdr;
 
