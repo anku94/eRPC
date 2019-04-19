@@ -12,10 +12,10 @@
 /**
  * @brief
  *
- * @param data_buf
+ * @param data_buf The buffer storing the user's data
  * @param data_len length of data including the SECURE header
  * @param iv_ptr Pointer to the AES-GCM IV (Initialisation Vector)
- * @param tag_buf
+ * @param tag_buf 
  *
  * @return Error Code (0)
  */
@@ -89,9 +89,9 @@ int aes_gcm_encrypt(unsigned char *data_buf, int data_len) {
 /**
  * @brief
  *
- * @param data_buf
+ * @param data_buf The buffer storing the user's data
  * @param data_len length of data including the SECURE header
- * @param iv_ptr
+ * @param iv_ptr Pointer to the initialisation vector
  * @param tag_ptr
  * @return void
  */
@@ -125,7 +125,7 @@ int aes_gcm_decrypt_internal(unsigned char *data_buf, int data_len,
  *
  * @param data_buf The pointer to the buffer with the user usable buffer first 
  *  then the secure header
- * @param data_len length of data including the SECURE header
+ * @param data_len length of data INCLUDING the SECURE header
  * @return int Error Codes
  */
 
