@@ -5,6 +5,10 @@
 #include "util/buffer.h"
 #include "util/math_utils.h"
 
+#ifdef SECURE
+#include "crypto.h"
+#endif
+
 namespace erpc {
 
 // Forward declarations for friendship
@@ -114,6 +118,12 @@ class MsgBuffer {
     static_assert(sizeof(pkthdr_t::headroom) == kHeadroom + 2, "");
     pkthdr_0->headroom[kHeadroom] = 0;
     pkthdr_0->headroom[kHeadroom + 1] = 0;
+
+    fprintf(stderr, "--Constructor 1 called: %zu--\n", data_size);
+
+    if (data_size == 3852u) {
+      print_trace();
+    }
   }
 
   /// Construct a single-packet "fake" MsgBuffer using a received packet,
@@ -129,10 +139,13 @@ class MsgBuffer {
     // max_data_size can be zero for control packets, so can't assert
 
     buffer.buf = nullptr;  // Mark as a non-dynamic ("fake") MsgBuffer
+
+    fprintf(stderr, "--Constructor 2 called: %zu--\n", data_size);
   }
 
   /// Resize this MsgBuffer to any size smaller than its maximum allocation
   inline void resize(size_t new_data_size, size_t new_num_pkts) {
+    fprintf(stderr, "--Resize called: %zu--\n", new_data_size);
     assert(new_data_size <= max_data_size);
     assert(new_num_pkts <= max_num_pkts);
     data_size = new_data_size;
@@ -148,10 +161,17 @@ class MsgBuffer {
   inline uint8_t get_req_type() const { return get_pkthdr_0()->req_type; }
 
   /**
-   * Return the current amount of data in this message buffer. This can be
+   * Return the current amount of app data in this message buffer. This can be
    * smaller than it's maximum data capacity due to resizing.
    */
-  inline size_t get_data_size() const { return data_size; }
+  inline size_t get_app_data_size() const {
+    // fprintf(stderr, "Real data size: %zu\n", data_size);
+#ifdef SECURE
+    return data_size - CRYPTO_HDR_LEN;
+#else
+    return data_size;
+#endif
+  }
 
  private:
   /// The optional backing hugepage buffer. buffer.buf points to the zeroth

@@ -20,6 +20,10 @@
 #include "util/timer.h"
 #include "util/udp_client.h"
 
+#ifdef SECURE
+#include "crypto.h"
+#endif
+
 namespace erpc {
 
 /**
@@ -75,11 +79,15 @@ class Rpc {
   /// Timeout for a session management request in milliseconds
   static constexpr size_t kSMTimeoutMs = kTesting ? 10 : 100;
 
- public:
   /// Max request or response *data* size, i.e., excluding packet headers
+  // Any function that uses it needs to be SECURE-aware, or
+  // operate at transport layer
   static constexpr size_t kMaxMsgSize =
       HugeAlloc::kMaxClassSize -
       ((HugeAlloc::kMaxClassSize / TTr::kMaxDataPerPkt) * sizeof(pkthdr_t));
+
+ public:
+
   static_assert((1 << kMsgSizeBits) >= kMaxMsgSize, "");
   static_assert((1 << kPktNumBits) * TTr::kMaxDataPerPkt > 2 * kMaxMsgSize, "");
 
@@ -105,35 +113,52 @@ class Rpc {
   /// Destroy the Rpc from a foreground thread
   ~Rpc();
 
-  /**
-   * @brief Create a hugepage-backed buffer for storing request or response
-   * messages.
+  /*
+   * @brief Call alloc_msg_buffer, but allocate space for SECURE
+   * header if needed. This function should be used by all apps
    *
-   * @param max_data_size If this call is successful, the returned MsgBuffer
-   * contains space for this many application data bytes. The MsgBuffer should
-   * be resized with resize_msg_buffer() when used for smaller requests or
-   * responses.
+   * @param max_data_size. See alloc_msg_buffer
    *
-   * @return The allocated message buffer. The returned message buffer is
-   * invalid (i.e., its MsgBuffer.buf is null) if we ran out of hugepage memory.
-   *
-   * @throw runtime_error if \p size is too large for the allocator, or if
-   * hugepage reservation failure is catastrophic. An exception is *not* thrown
-   * if allocation fails simply because we ran out of memory.
-   *
-   * \note The returned MsgBuffer's \p buf is surrounded by packet headers for
-   * internal use by eRPC. This function does not fill in packet headers,
-   * although it sets the magic field in the zeroth header.
+   * @return The allocated message buffer
    */
   inline MsgBuffer alloc_msg_buffer(size_t max_data_size) {
     assert(max_data_size > 0);  // Doesn't work for max_data_size = 0
 
+#ifdef SECURE
+    fprintf(stderr, "allocing to: %zu + 28\n", max_data_size);
+      max_data_size += CRYPTO_HDR_LEN;
+#endif
+
+    return _alloc_msg_buffer(max_data_size);
+  }
+    /**
+     * @brief Create a hugepage-backed buffer for storing request or response
+     * messages.
+     *
+     * @param max_data_size If this call is successful, the returned MsgBuffer
+     * contains space for this many application data bytes. The MsgBuffer should
+     * be resized with resize_msg_buffer() when used for smaller requests or
+     * responses.
+     *
+     * @return The allocated message buffer. The returned message buffer is
+     * invalid (i.e., its MsgBuffer.buf is null) if we ran out of hugepage memory.
+     *
+     * @throw runtime_error if \p size is too large for the allocator, or if
+     * hugepage reservation failure is catastrophic. An exception is *not* thrown
+     * if allocation fails simply because we ran out of memory.
+     *
+     * \note The returned MsgBuffer's \p buf is surrounded by packet headers for
+     * internal use by eRPC. This function does not fill in packet headers,
+     * although it sets the magic field in the zeroth header.
+     */
+
+  inline MsgBuffer _alloc_msg_buffer(size_t max_data_size) {
     // This function avoids division for small data sizes
-    size_t max_num_pkts = data_size_to_num_pkts(max_data_size);
+    size_t max_num_pkts = _data_size_to_num_pkts(max_data_size);
 
     lock_cond(&huge_alloc_lock);
     Buffer buffer =
-        huge_alloc->alloc(max_data_size + (max_num_pkts * sizeof(pkthdr_t)));
+            huge_alloc->alloc(max_data_size + (max_num_pkts * sizeof(pkthdr_t)));
     unlock_cond(&huge_alloc_lock);
 
     if (unlikely(buffer.buf == nullptr)) {
@@ -160,10 +185,21 @@ class Rpc {
   static inline void resize_msg_buffer(MsgBuffer *msg_buffer,
                                        size_t new_data_size) {
     assert(msg_buffer->is_valid());  // Can be fake
+
+#ifdef SECURE
+    new_data_size += CRYPTO_HDR_LEN;
+#endif
+
+    fprintf(stderr, "Resize to: %zu, max: %zu\n", new_data_size, msg_buffer->max_data_size);
+
+    if (new_data_size > msg_buffer->max_data_size) {
+      print_trace();
+    }
+
     assert(new_data_size <= msg_buffer->max_data_size);
 
     // Avoid division for single-packet data sizes
-    size_t new_num_pkts = data_size_to_num_pkts(new_data_size);
+    size_t new_num_pkts = _data_size_to_num_pkts(new_data_size);
     msg_buffer->resize(new_data_size, new_num_pkts);
   }
 
@@ -333,8 +369,16 @@ class Rpc {
   }
 
   /// Return the maximum *data* size in one packet for the (private) transport
-  static inline constexpr size_t get_max_data_per_pkt() {
-    return TTr::kMaxDataPerPkt;
+  // This function returns the maximum size of a single-packet request/response
+  // and not the actual max data per packet
+  static inline constexpr size_t _get_max_data_per_pkt() {
+
+#ifdef SECURE
+      return TTr::kMaxDataPerPkt - CRYPTO_IV_LEN - CRYPTO_TAG_LEN;
+#else
+      return TTr::kMaxDataPerPkt;
+#endif
+
   }
 
   /// Return the hostname of the remote endpoint for a connected session
@@ -348,7 +392,13 @@ class Rpc {
   }
 
   /// Return the data size in bytes that can be sent in one request or response
-  static inline size_t get_max_msg_size() { return kMaxMsgSize; }
+  static inline size_t get_max_msg_size() {
+#ifdef CRYPTO
+    return kMaxMsgSize - CRYPTO_HDR_LEN;
+#else
+    return kMaxMsgSize;
+#endif
+  }
 
   /// Return the ID of this Rpc object
   inline uint8_t get_rpc_id() const { return rpc_id; }
@@ -536,13 +586,49 @@ class Rpc {
     return true;
   }
 
+public:
+  
+  /**
+   * @brief Finds the number of packets required to send a number of bytes of data
+   * @param app_data_size The number of bytes the client would like to send
+   *
+   * @return The number of packets required
+   */
+  static inline size_t num_pkts_for_app_data_size(size_t app_data_size) {
+#ifdef SECURE
+    app_data_size += CRYPTO_HDR_LEN;
+#endif
+    if (app_data_size <= TTr::kMaxDataPerPkt) return 1;
+    return (app_data_size + TTr::kMaxDataPerPkt - 1) / TTr::kMaxDataPerPkt;
+  }
+  /**
+   * @brief 
+   * @param n_packets The number of packets the client would like to send
+   *
+   * @return The maximum number of bytes which the client can use.
+   */
+  static inline size_t max_app_data_size_for_packets(size_t n_packets) {
+    size_t max_data_size = TTr::kMaxDataPerPkt * n_packets;
+
+    fprintf(stderr, "Transport Max Data Pkt: %zu\n", max_data_size);
+
+
+#ifdef SECURE
+    return max_data_size - CRYPTO_HDR_LEN;
+#else
+    return max_data_size;
+#endif
+  }
+
+private:
+
   /**
    * @brief Return the number of packets required for \p data_size data bytes.
    *
    * This should avoid division if \p data_size fits in one packet.
    * For \p data_size = 0, the return value need not be 0, i.e., it can be 1.
    */
-  static size_t data_size_to_num_pkts(size_t data_size) {
+  static size_t _data_size_to_num_pkts(size_t data_size) {
     if (data_size <= TTr::kMaxDataPerPkt) return 1;
     return (data_size + TTr::kMaxDataPerPkt - 1) / TTr::kMaxDataPerPkt;
   }
@@ -1047,7 +1133,11 @@ class Rpc {
   /// Size of the preallocated response buffer. This is one packet by default,
   /// but some applications might benefit from a larger preallocated buffer,
   /// at the expense of increased memory utilization.
+#ifdef SECURE
+  size_t pre_resp_msgbuf_size = TTr::kMaxDataPerPkt - CRYPTO_HDR_LEN;
+#else
   size_t pre_resp_msgbuf_size = TTr::kMaxDataPerPkt;
+#endif
 };
 
 // This goes at the end of every Rpc implementation file to force compilation

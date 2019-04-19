@@ -130,7 +130,7 @@ int aes_gcm_decrypt_internal(unsigned char *data_buf, int data_len,
  */
 
 int aes_gcm_decrypt(unsigned char *data_buf, int buf_len) {
-  int data_len = buf_len - CRYPTO_IV_LEN - CRYPTO_TAG_LEN;
+  int data_len = buf_len - static_cast<int>(CRYPTO_HDR_LEN);
   // void *iv_ptr = &data_buf[data_len];
   unsigned char *iv_ptr = data_buf + data_len;
   // void *tag_ptr = &data_buf[data_len + CRYPTO_IV_LEN];

@@ -30,10 +30,12 @@ void req_handler(ReqHandle *req_handle, void *_c) {
   }
 
   const MsgBuffer *req_msgbuf = req_handle->get_req_msgbuf();
-  size_t resp_size = req_msgbuf->get_data_size();
+  size_t resp_size = req_msgbuf->get_app_data_size();
+  fprintf(stderr, "resp_size: %zu\n", resp_size);
   Rpc<CTransport>::resize_msg_buffer(&req_handle->pre_resp_msgbuf, resp_size);
   memcpy(req_handle->pre_resp_msgbuf.buf, req_msgbuf->buf, resp_size);
   c->rpc->enqueue_response(req_handle, &req_handle->pre_resp_msgbuf);
+  fprintf(stderr, "handler exit\n");
 }
 
 /// The common continuation function for all subtests. This checks that the
@@ -42,7 +44,7 @@ void req_handler(ReqHandle *req_handle, void *_c) {
 void cont_func(void *_c, void *_tag) {
   auto *c = static_cast<AppContext *>(_c);
   size_t tag = reinterpret_cast<size_t>(_tag);
-  ASSERT_EQ(c->resp_msgbufs[tag].get_data_size(), config_msg_size);
+  ASSERT_EQ(c->resp_msgbufs[tag].get_app_data_size(), config_msg_size);
 
   for (size_t i = 0; i < config_msg_size; i++) {
     ASSERT_EQ(c->resp_msgbufs[tag].buf[i], static_cast<uint8_t>(tag));
@@ -70,7 +72,8 @@ void generic_test_func(Nexus *nexus, size_t) {
   c.req_msgbufs.resize(tot_reqs_per_iter);
   c.resp_msgbufs.resize(tot_reqs_per_iter);
   for (size_t i = 0; i < tot_reqs_per_iter; i++) {
-    const size_t max_data_pkt = rpc->get_max_data_per_pkt();
+    const size_t max_data_pkt = rpc->max_app_data_size_for_packets(1u);
+    fprintf(stderr, "Max data packet: %zu\n", max_data_pkt);
     c.req_msgbufs[i] = rpc->alloc_msg_buffer_or_die(max_data_pkt);
     c.resp_msgbufs[i] = rpc->alloc_msg_buffer_or_die(max_data_pkt);
   }
@@ -79,7 +82,10 @@ void generic_test_func(Nexus *nexus, size_t) {
   for (size_t iter = 0; iter < 2; iter++) {
     c.num_rpc_resps = 0;
 
+#ifdef SECURE
     test_printf("Client: Iteration %zu.\n", iter);
+#endif
+    test_printf("Client2: Iteration %zu.\n", iter);
     size_t iter_req_i = 0;  // Request MsgBuffer index in an iteration
 
     for (size_t sess_i = 0; sess_i < config_num_sessions; sess_i++) {
@@ -87,6 +93,7 @@ void generic_test_func(Nexus *nexus, size_t) {
         assert(iter_req_i < tot_reqs_per_iter);
         MsgBuffer &cur_req_msgbuf = c.req_msgbufs[iter_req_i];
 
+        fprintf(stderr, "Config msg size: %zu\n", config_msg_size);
         rpc->resize_msg_buffer(&cur_req_msgbuf, config_msg_size);
         for (size_t i = 0; i < config_msg_size; i++) {
           cur_req_msgbuf.buf[i] = static_cast<uint8_t>(iter_req_i);
@@ -128,53 +135,53 @@ void launch_helper() {
                                ConnectServers::kFalse, 0.0);
 }
 
-TEST(OneSmallRpc, Foreground) {
-  config_num_sessions = 1;
-  config_num_bg_threads = 0;
-  config_rpcs_per_session = 1;
-  config_msg_size = Rpc<CTransport>::get_max_data_per_pkt();
-  launch_helper();
-}
+// TEST(OneSmallRpc, Foreground) {
+  // config_num_sessions = 1;
+  // config_num_bg_threads = 0;
+  // config_rpcs_per_session = 1;
+  // config_msg_size = Rpc<CTransport>::max_app_data_size_for_packets(1u);
+  // launch_helper();
+// }
 
 TEST(OneSmallRpc, Background) {
   config_num_sessions = 1;
   config_num_bg_threads = 1;
   config_rpcs_per_session = 1;
-  config_msg_size = Rpc<CTransport>::get_max_data_per_pkt();
+  config_msg_size = Rpc<CTransport>::max_app_data_size_for_packets(1u);
   launch_helper();
 }
 
-TEST(MultiSmallRpcOneSession, Foreground) {
-  config_num_sessions = 1;
-  config_num_bg_threads = 0;
-  config_rpcs_per_session = kSessionReqWindow;
-  config_msg_size = Rpc<CTransport>::get_max_data_per_pkt();
-  launch_helper();
-}
+// TEST(MultiSmallRpcOneSession, Foreground) {
+  // config_num_sessions = 1;
+  // config_num_bg_threads = 0;
+  // config_rpcs_per_session = kSessionReqWindow;
+  // config_msg_size = Rpc<CTransport>::max_app_data_size_for_packets(1u);
+  // launch_helper();
+// }
 
-TEST(MultiSmallRpcOneSession, Background) {
-  config_num_sessions = 1;
-  config_num_bg_threads = 2;
-  config_rpcs_per_session = kSessionReqWindow;
-  config_msg_size = Rpc<CTransport>::get_max_data_per_pkt();
-  launch_helper();
-}
+// TEST(MultiSmallRpcOneSession, Background) {
+  // config_num_sessions = 1;
+  // config_num_bg_threads = 2;
+  // config_rpcs_per_session = kSessionReqWindow;
+  // config_msg_size = Rpc<CTransport>::max_app_data_size_for_packets(1u);
+  // launch_helper();
+// }
 
-TEST(MultiSmallRpcMultiSession, Foreground) {
-  config_num_sessions = 4;
-  config_num_bg_threads = 0;
-  config_rpcs_per_session = kSessionReqWindow;
-  config_msg_size = Rpc<CTransport>::get_max_data_per_pkt();
-  launch_helper();
-}
+// TEST(MultiSmallRpcMultiSession, Foreground) {
+  // config_num_sessions = 4;
+  // config_num_bg_threads = 0;
+  // config_rpcs_per_session = kSessionReqWindow;
+  // config_msg_size = Rpc<CTransport>::max_app_data_size_for_packets(1u);
+  // launch_helper();
+// }
 
-TEST(MultiSmallRpcMultiSession, Background) {
-  config_num_sessions = 4;
-  config_num_bg_threads = 3;
-  config_rpcs_per_session = kSessionReqWindow;
-  config_msg_size = Rpc<CTransport>::get_max_data_per_pkt();
-  launch_helper();
-}
+// TEST(MultiSmallRpcMultiSession, Background) {
+  // config_num_sessions = 4;
+  // config_num_bg_threads = 3;
+  // config_rpcs_per_session = kSessionReqWindow;
+  // config_msg_size = Rpc<CTransport>::max_app_data_size_for_packets(1u);
+  // launch_helper();
+// }
 
 int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);

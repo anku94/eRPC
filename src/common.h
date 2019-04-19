@@ -21,6 +21,9 @@
 #include "rpc_constants.h"
 #include "tweakme.h"
 
+// For backtrace - maybe put in a DEBUG #define
+#include <execinfo.h>
+
 namespace erpc {
 
 #define _unused(x) ((void)(x))  // Make production build happy
@@ -102,5 +105,21 @@ static inline void exit_assert(bool condition, std::string error_msg) {
 
 static inline void dpath_stat_inc(size_t &stat, size_t val) {
   if (kDatapathStats) stat += val;
+}
+
+static inline void print_trace() {
+  void *array[10];
+  int size;
+  char **strings;
+  int i;
+
+  size = backtrace(array, 10);
+  strings = backtrace_symbols(array, size);
+
+  printf("Obtained %d stack frames.\n", size);
+
+  for (i = 0; i < size; i++) printf("%s\n", strings[i]);
+
+  free(strings);
 }
 }  // namespace erpc
