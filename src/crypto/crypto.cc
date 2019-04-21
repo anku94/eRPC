@@ -1,5 +1,4 @@
 #include "crypto.h"
-
 #ifdef CRYPTO_VERBOSE
 #include <iostream>
 #endif
@@ -93,7 +92,7 @@ int aes_gcm_encrypt(unsigned char *data_buf, int data_len) {
  * @param data_len length of data including the SECURE header
  * @param iv_ptr Pointer to the initialisation vector
  * @param tag_ptr
- * @return void
+ * @return 0 if successful, < 0 otherwise
  */
 
 int aes_gcm_decrypt_internal(unsigned char *data_buf, int data_len,
@@ -113,6 +112,8 @@ int aes_gcm_decrypt_internal(unsigned char *data_buf, int data_len,
   rv = EVP_DecryptFinal_ex(ctx, data_buf + pt_len, &tmplen);
   pt_len += tmplen;
 
+  if (rv > 0) rv = 0; // normalize EVP error code to our scheme
+
   EVP_CIPHER_CTX_free(ctx);
 
   assert(data_len == pt_len);
@@ -129,14 +130,12 @@ int aes_gcm_decrypt_internal(unsigned char *data_buf, int data_len,
  * @return int Error Codes
  */
 
-int aes_gcm_decrypt(unsigned char *data_buf, int buf_len) {
-  int data_len = buf_len - static_cast<int>(CRYPTO_HDR_LEN);
-  // void *iv_ptr = &data_buf[data_len];
+int aes_gcm_decrypt(unsigned char *data_buf, int data_len) {
   unsigned char *iv_ptr = data_buf + data_len;
-  // void *tag_ptr = &data_buf[data_len + CRYPTO_IV_LEN];
   unsigned char *tag_ptr = data_buf + data_len + CRYPTO_IV_LEN;
 
   int ret = aes_gcm_decrypt_internal(data_buf, data_len, iv_ptr, tag_ptr);
+
   return ret;
 }
 

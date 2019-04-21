@@ -7,8 +7,6 @@
 #define CRYPTO_IV_LEN 12u
 #define CRYPTO_TAG_LEN 16u
 
-#define CRYPTO_VERBOSE 1
-
 namespace erpc {
 // Shared key for each eRPC session. This should _eventually_ be negotiated
 // using a secure handshake

@@ -36,6 +36,15 @@ void Rpc<TTr>::enqueue_response(ReqHandle *req_handle, MsgBuffer *resp_msgbuf) {
     return;  // During session reset, don't add packets to TX burst
   }
 
+#ifdef SECURE
+
+  // TODO: Grab key from session
+  int encrypt_res =
+    aes_gcm_encrypt(resp_msgbuf->buf, resp_msgbuf->get_app_data_size());
+
+  assert(encrypt_res >= 0);
+#endif
+
   // Fill in packet 0's header
   pkthdr_t *resp_pkthdr_0 = resp_msgbuf->get_pkthdr_0();
   resp_pkthdr_0->req_type = sslot->server_info.req_type;
@@ -166,6 +175,15 @@ void Rpc<TTr>::process_resp_one_st(SSlot *sslot, const pkthdr_t *pkthdr,
                     args.resp_msgbuf, args.cont_func, args.tag, args.cont_etid);
     session->client_info.enq_req_backlog.pop();
   }
+
+#ifdef SECURE
+
+  int decrypt_res
+    = aes_gcm_decrypt(resp_msgbuf->buf, resp_msgbuf->get_app_data_size());
+
+  assert(decrypt_res >= 0);
+
+#endif
 
   if (likely(_cont_etid == kInvalidBgETid)) {
     _cont_func(context, _tag);

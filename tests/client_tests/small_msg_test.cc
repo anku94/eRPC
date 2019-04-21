@@ -82,10 +82,6 @@ void generic_test_func(Nexus *nexus, size_t) {
   for (size_t iter = 0; iter < 2; iter++) {
     c.num_rpc_resps = 0;
 
-#ifdef SECURE
-    test_printf("Client: Iteration %zu.\n", iter);
-#endif
-    test_printf("Client2: Iteration %zu.\n", iter);
     size_t iter_req_i = 0;  // Request MsgBuffer index in an iteration
 
     for (size_t sess_i = 0; sess_i < config_num_sessions; sess_i++) {
@@ -93,7 +89,6 @@ void generic_test_func(Nexus *nexus, size_t) {
         assert(iter_req_i < tot_reqs_per_iter);
         MsgBuffer &cur_req_msgbuf = c.req_msgbufs[iter_req_i];
 
-        fprintf(stderr, "Config msg size: %zu\n", config_msg_size);
         rpc->resize_msg_buffer(&cur_req_msgbuf, config_msg_size);
         for (size_t i = 0; i < config_msg_size; i++) {
           cur_req_msgbuf.buf[i] = static_cast<uint8_t>(iter_req_i);
@@ -135,21 +130,21 @@ void launch_helper() {
                                ConnectServers::kFalse, 0.0);
 }
 
-// TEST(OneSmallRpc, Foreground) {
-  // config_num_sessions = 1;
-  // config_num_bg_threads = 0;
-  // config_rpcs_per_session = 1;
-  // config_msg_size = Rpc<CTransport>::max_app_data_size_for_packets(1u);
-  // launch_helper();
-// }
-
-TEST(OneSmallRpc, Background) {
+TEST(OneSmallRpc, Foreground) {
   config_num_sessions = 1;
-  config_num_bg_threads = 1;
+  config_num_bg_threads = 0;
   config_rpcs_per_session = 1;
   config_msg_size = Rpc<CTransport>::max_app_data_size_for_packets(1u);
   launch_helper();
 }
+
+// TEST(OneSmallRpc, Background) {
+  // config_num_sessions = 1;
+  // config_num_bg_threads = 1;
+  // config_rpcs_per_session = 1;
+  // config_msg_size = Rpc<CTransport>::max_app_data_size_for_packets(1u);
+  // launch_helper();
+// }
 
 // TEST(MultiSmallRpcOneSession, Foreground) {
   // config_num_sessions = 1;

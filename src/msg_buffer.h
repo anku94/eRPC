@@ -118,12 +118,6 @@ class MsgBuffer {
     static_assert(sizeof(pkthdr_t::headroom) == kHeadroom + 2, "");
     pkthdr_0->headroom[kHeadroom] = 0;
     pkthdr_0->headroom[kHeadroom + 1] = 0;
-
-    fprintf(stderr, "--Constructor 1 called: %zu--\n", data_size);
-
-    if (data_size == 3852u) {
-      print_trace();
-    }
   }
 
   /// Construct a single-packet "fake" MsgBuffer using a received packet,
@@ -139,13 +133,10 @@ class MsgBuffer {
     // max_data_size can be zero for control packets, so can't assert
 
     buffer.buf = nullptr;  // Mark as a non-dynamic ("fake") MsgBuffer
-
-    fprintf(stderr, "--Constructor 2 called: %zu--\n", data_size);
   }
 
   /// Resize this MsgBuffer to any size smaller than its maximum allocation
   inline void resize(size_t new_data_size, size_t new_num_pkts) {
-    fprintf(stderr, "--Resize called: %zu--\n", new_data_size);
     assert(new_data_size <= max_data_size);
     assert(new_num_pkts <= max_num_pkts);
     data_size = new_data_size;
