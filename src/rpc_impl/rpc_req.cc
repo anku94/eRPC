@@ -23,6 +23,22 @@ void Rpc<TTr>::enqueue_request(int session_num, uint8_t req_type,
   Session *session = session_vec[static_cast<size_t>(session_num)];
   assert(session->is_connected());  // User is notified before we disconnect
 
+#ifdef SECURE
+
+  // Encrypt the buffer
+  // Should probably not be done in the dispatch thread
+  // TODO: handshake, for now assume shared key is somehow available
+
+  fprintf(stderr, "Encrypting req msgbuf, appdatalen: %zu\n",
+      req_msgbuf->get_app_data_size());
+
+  int encrypt_res =
+      aes_gcm_encrypt(req_msgbuf->buf, req_msgbuf->get_app_data_size());
+
+  assert(encrypt_res >= 0);
+
+#endif
+
   // If a free sslot is unavailable, save to session backlog
   if (unlikely(session->client_info.sslot_free_vec.size() == 0)) {
     session->client_info.enq_req_backlog.emplace(session_num, req_type,
@@ -134,6 +150,16 @@ void Rpc<TTr>::process_small_req_st(SSlot *sslot, pkthdr_t *pkthdr) {
     // For foreground request handlers, a "fake" static request MsgBuffer
     // suffices -- it's valid for the duration of req_func().
     req_msgbuf = MsgBuffer(pkthdr, pkthdr->msg_size);
+
+#ifdef SECURE
+    fprintf(stderr, "decrypting single packet req: %zu\n", req_msgbuf.get_app_data_size());
+
+    int crypto_res =
+      aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size());
+
+    assert(crypto_res >= 0);
+#endif
+
     req_func.req_func(static_cast<ReqHandle *>(sslot), context);
     return;
   } else {
@@ -152,6 +178,16 @@ void Rpc<TTr>::process_small_req_st(SSlot *sslot, pkthdr_t *pkthdr) {
     assert(req_msgbuf.buf != nullptr);
     memcpy(req_msgbuf.get_pkthdr_0(), pkthdr,
            pkthdr->msg_size + sizeof(pkthdr_t));
+
+#ifdef SECURE
+    fprintf(stderr, "decrypting single packet req\n");
+
+    int crypto_res =
+      aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size());
+
+    assert(crypto_res == 0);
+#endif
+
     submit_bg_req_st(sslot);
     return;
   }
