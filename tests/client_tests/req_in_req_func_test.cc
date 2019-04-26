@@ -142,10 +142,19 @@ void primary_cont_func(void *_c, void *_tag) {
   // Extract the request info
   size_t req_size_cp = srv_req_info->req_size_cp;
   ReqHandle *req_handle_cp = srv_req_info->req_handle_cp;
+
+#ifdef SECURE
+  aes_gcm_decrypt(srv_req_info->req_msgbuf_pb.buf, srv_req_info->req_msgbuf_pb.get_app_data_size());
+#endif
+
   assert(resp_msgbuf_pb.get_app_data_size() == req_size_cp);
 
   // Check the response from server #1
   for (size_t i = 0; i < req_size_cp; i++) {
+    if (srv_req_info->req_msgbuf_pb.buf[i] + 1 != resp_msgbuf_pb.buf[i]) {
+      fprintf(stderr, "%lu: %d != %d", i, srv_req_info->req_msgbuf_pb.buf[i] + 1, resp_msgbuf_pb.buf[i]);
+      fprintf(stderr, "\n\n %d %d %d..\n", resp_msgbuf_pb.buf[2], resp_msgbuf_pb.buf[3], resp_msgbuf_pb.buf[4]);
+    }
     assert(srv_req_info->req_msgbuf_pb.buf[i] + 1 == resp_msgbuf_pb.buf[i]);
   }
 
@@ -238,6 +247,7 @@ void client_thread(Nexus *nexus, size_t num_sessions) {
   c.resp_msgbufs.resize(erpc::kSessionReqWindow);
   for (size_t i = 0; i < erpc::kSessionReqWindow; i++) {
     const size_t sz = rpc->get_max_msg_size();
+    fprintf(stderr, "---> Max msg size: %zu\n", sz);
     c.req_msgbufs[i] = rpc->alloc_msg_buffer_or_die(sz);
     c.resp_msgbufs[i] = rpc->alloc_msg_buffer_or_die(sz);
 
@@ -277,32 +287,32 @@ TEST(Base, BothInForeground) {
                                ConnectServers::kTrue, 0.0);
 }
 
-/// 1 primary, 1 backup, primary in background
+// 1 primary, 1 backup, primary in background
 TEST(Base, PrimaryInBackground) {
-  primary_bg = true;
-  backup_bg = false;
+ primary_bg = true;
+ backup_bg = false;
 
-  auto reg_info_vec = {
-      ReqFuncRegInfo(kTestReqTypeCP, req_handler_cp, ReqFuncType::kBackground),
-      ReqFuncRegInfo(kTestReqTypePB, req_handler_pb, ReqFuncType::kForeground)};
+ auto reg_info_vec = {
+     ReqFuncRegInfo(kTestReqTypeCP, req_handler_cp, ReqFuncType::kBackground),
+     ReqFuncRegInfo(kTestReqTypePB, req_handler_pb, ReqFuncType::kForeground)};
 
-  // 2 client sessions (=> 2 server threads), 1 background threads
-  launch_server_client_threads(2, 8, client_thread, reg_info_vec,
-                               ConnectServers::kTrue, 0.0);
+ // 2 client sessions (=> 2 server threads), 1 background threads
+ launch_server_client_threads(2, 8, client_thread, reg_info_vec,
+                              ConnectServers::kTrue, 0.0);
 }
 
 /// 1 primary, 1 backup, both in background
 TEST(Base, BothInBackground) {
-  primary_bg = true;
-  backup_bg = true;
+ primary_bg = true;
+ backup_bg = true;
 
-  auto reg_info_vec = {
-      ReqFuncRegInfo(kTestReqTypeCP, req_handler_cp, ReqFuncType::kBackground),
-      ReqFuncRegInfo(kTestReqTypePB, req_handler_pb, ReqFuncType::kBackground)};
+ auto reg_info_vec = {
+     ReqFuncRegInfo(kTestReqTypeCP, req_handler_cp, ReqFuncType::kBackground),
+     ReqFuncRegInfo(kTestReqTypePB, req_handler_pb, ReqFuncType::kBackground)};
 
-  // 2 client sessions (=> 2 server threads), 3 background threads
-  launch_server_client_threads(2, 3, client_thread, reg_info_vec,
-                               ConnectServers::kTrue, 0.0);
+ // 2 client sessions (=> 2 server threads), 3 background threads
+ launch_server_client_threads(2, 3, client_thread, reg_info_vec,
+                              ConnectServers::kTrue, 0.0);
 }
 
 int main(int argc, char **argv) {

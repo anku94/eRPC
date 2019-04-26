@@ -290,6 +290,15 @@ void Rpc<TTr>::process_large_req_one_st(SSlot *sslot, const pkthdr_t *pkthdr) {
   sslot->server_info.req_type = pkthdr->req_type;
   sslot->server_info.req_func_type = req_func.req_func_type;
 
+#ifdef SECURE
+    
+    int decrypt_res
+        = aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size());
+
+    assert(decrypt_res >= 0);
+
+#endif
+
   // req_msgbuf here is independent of the RX ring, so don't make another copy
   if (likely(!req_func.is_background())) {
     req_func.req_func(static_cast<ReqHandle *>(sslot), context);

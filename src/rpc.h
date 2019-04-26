@@ -386,7 +386,7 @@ class Rpc {
 
   /// Return the data size in bytes that can be sent in one request or response
   static inline size_t get_max_msg_size() {
-#ifdef CRYPTO
+#ifdef SECURE
     return kMaxMsgSize - CRYPTO_HDR_LEN;
 #else
     return kMaxMsgSize;
