@@ -29,9 +29,6 @@ void Rpc<TTr>::enqueue_request(int session_num, uint8_t req_type,
   // Should probably not be done in the dispatch thread
   // TODO: handshake, for now assume shared key is somehow available
 
-  fprintf(stderr, "Encrypting req msgbuf, appdatalen: %zu\n",
-      req_msgbuf->get_app_data_size());
-
   int encrypt_res =
       aes_gcm_encrypt(req_msgbuf->buf, req_msgbuf->get_app_data_size());
 
@@ -152,8 +149,6 @@ void Rpc<TTr>::process_small_req_st(SSlot *sslot, pkthdr_t *pkthdr) {
     req_msgbuf = MsgBuffer(pkthdr, pkthdr->msg_size);
 
 #ifdef SECURE
-    fprintf(stderr, "decrypting single packet req: %zu\n", req_msgbuf.get_app_data_size());
-
     int crypto_res =
       aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size());
 
@@ -165,7 +160,6 @@ void Rpc<TTr>::process_small_req_st(SSlot *sslot, pkthdr_t *pkthdr) {
   } else {
     // For background request handlers, we need a RX ring--independent copy of
     // the request. The allocated req_msgbuf is freed by the background thread.
-    fprintf(stderr, "===> Pkthdr msg size: %zu\n", pkthdr->msg_size);
 #ifdef SECURE
     // Dirty hack, ideally there should be two alloc_msg_buffer's
     // One that transparently allocates a SECURE_HEADER, used by apps
@@ -180,8 +174,6 @@ void Rpc<TTr>::process_small_req_st(SSlot *sslot, pkthdr_t *pkthdr) {
            pkthdr->msg_size + sizeof(pkthdr_t));
 
 #ifdef SECURE
-    fprintf(stderr, "decrypting single packet req\n");
-
     int crypto_res =
       aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size());
 

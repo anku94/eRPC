@@ -151,10 +151,6 @@ void primary_cont_func(void *_c, void *_tag) {
 
   // Check the response from server #1
   for (size_t i = 0; i < req_size_cp; i++) {
-    if (srv_req_info->req_msgbuf_pb.buf[i] + 1 != resp_msgbuf_pb.buf[i]) {
-      fprintf(stderr, "%lu: %d != %d", i, srv_req_info->req_msgbuf_pb.buf[i] + 1, resp_msgbuf_pb.buf[i]);
-      fprintf(stderr, "\n\n %d %d %d..\n", resp_msgbuf_pb.buf[2], resp_msgbuf_pb.buf[3], resp_msgbuf_pb.buf[4]);
-    }
     assert(srv_req_info->req_msgbuf_pb.buf[i] + 1 == resp_msgbuf_pb.buf[i]);
   }
 
@@ -247,7 +243,6 @@ void client_thread(Nexus *nexus, size_t num_sessions) {
   c.resp_msgbufs.resize(erpc::kSessionReqWindow);
   for (size_t i = 0; i < erpc::kSessionReqWindow; i++) {
     const size_t sz = rpc->get_max_msg_size();
-    fprintf(stderr, "---> Max msg size: %zu\n", sz);
     c.req_msgbufs[i] = rpc->alloc_msg_buffer_or_die(sz);
     c.resp_msgbufs[i] = rpc->alloc_msg_buffer_or_die(sz);
 
