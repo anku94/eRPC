@@ -32,6 +32,8 @@ void Rpc<TTr>::enqueue_request(int session_num, uint8_t req_type,
   int encrypt_res =
       aes_gcm_encrypt(req_msgbuf->buf, req_msgbuf->get_app_data_size());
 
+  _unused(encrypt_res);
+
   assert(encrypt_res >= 0);
 
 #endif
@@ -152,6 +154,8 @@ void Rpc<TTr>::process_small_req_st(SSlot *sslot, pkthdr_t *pkthdr) {
     int crypto_res =
       aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size());
 
+    _unused(crypto_res);
+
     assert(crypto_res >= 0);
 #endif
 
@@ -177,6 +181,7 @@ void Rpc<TTr>::process_small_req_st(SSlot *sslot, pkthdr_t *pkthdr) {
     int crypto_res =
       aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size());
 
+    _unused(crypto_res);
     assert(crypto_res == 0);
 #endif
 
@@ -286,6 +291,8 @@ void Rpc<TTr>::process_large_req_one_st(SSlot *sslot, const pkthdr_t *pkthdr) {
     
     int decrypt_res
         = aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size());
+
+    _unused(decrypt_res);
 
     assert(decrypt_res >= 0);
 

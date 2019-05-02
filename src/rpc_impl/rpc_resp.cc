@@ -42,6 +42,8 @@ void Rpc<TTr>::enqueue_response(ReqHandle *req_handle, MsgBuffer *resp_msgbuf) {
   int encrypt_res =
     aes_gcm_encrypt(resp_msgbuf->buf, resp_msgbuf->get_app_data_size());
 
+  _unused(encrypt_res);
+
   assert(encrypt_res >= 0);
 #endif
 
@@ -180,6 +182,8 @@ void Rpc<TTr>::process_resp_one_st(SSlot *sslot, const pkthdr_t *pkthdr,
 
   int decrypt_res
     = aes_gcm_decrypt(resp_msgbuf->buf, resp_msgbuf->get_app_data_size());
+
+  _unused(decrypt_res);
 
   assert(decrypt_res >= 0);
 
