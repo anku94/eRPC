@@ -8,16 +8,18 @@ namespace erpc {
 //
 // So sslot->rx_msgbuf may or may not be valid at this point.
 template <class TTr>
-void Rpc<TTr>::enqueue_response(ReqHandle *req_handle, MsgBuffer *resp_msgbuf) {
-  #ifdef SECURE
-    // TODO: Grab key from session
+void Rpc<TTr>::enqueue_response(ReqHandle *req_handle, MsgBuffer *resp_msgbuf,
+                                bool encrypt) {
+#ifdef SECURE
+  // TODO: Grab key from session
+  if (encrypt) {
     int encrypt_res =
-      aes_gcm_encrypt(resp_msgbuf->buf, resp_msgbuf->get_app_data_size());
-
-    _unused(encrypt_res);
-
+        aes_gcm_encrypt(resp_msgbuf->buf, resp_msgbuf->get_app_data_size());
     assert(encrypt_res >= 0);
-  #endif
+    _unused(encrypt_res);
+  }
+
+#endif
 
   // When called from a background thread, enqueue to the foreground thread
   if (unlikely(!in_dispatch())) {
@@ -103,8 +105,8 @@ void Rpc<TTr>::process_resp_one_st(SSlot *sslot, const pkthdr_t *pkthdr,
   ci.num_rx++;
   ci.progress_tsc = ev_loop_tsc;
 
-// TODO: Ensure that resizing resp buffer to req buffer - hdrlen does
-// not cause overwrites/memory corruption anywhere
+  // TODO: Ensure that resizing resp buffer to req buffer - hdrlen does
+  // not cause overwrites/memory corruption anywhere
 
   // Special handling for single-packet responses
   if (likely(pkthdr->msg_size <= TTr::kMaxDataPerPkt)) {
@@ -177,16 +179,16 @@ void Rpc<TTr>::process_resp_one_st(SSlot *sslot, const pkthdr_t *pkthdr,
     session->client_info.enq_req_backlog.pop();
   }
 
-// #ifdef SECURE
+#ifdef SECURE
 
-//   int decrypt_res
-//     = aes_gcm_decrypt(resp_msgbuf->buf, resp_msgbuf->get_app_data_size());
+  int decrypt_res =
+      aes_gcm_decrypt(resp_msgbuf->buf, resp_msgbuf->get_app_data_size());
 
-//   _unused(decrypt_res);
+  _unused(decrypt_res);
 
-//   assert(decrypt_res >= 0);
+  assert(decrypt_res >= 0);
 
-// #endif
+#endif
 
   if (likely(_cont_etid == kInvalidBgETid)) {
     _cont_func(context, _tag);

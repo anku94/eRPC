@@ -71,7 +71,6 @@ void generic_test_func(Nexus *nexus, size_t) {
   c.resp_msgbufs.resize(tot_reqs_per_iter);
   for (size_t i = 0; i < tot_reqs_per_iter; i++) {
     const size_t max_data_pkt = rpc->max_app_data_size_for_packets(1u);
-    fprintf(stderr, "Max data packet: %zu\n", max_data_pkt);
     c.req_msgbufs[i] = rpc->alloc_msg_buffer_or_die(max_data_pkt);
     c.resp_msgbufs[i] = rpc->alloc_msg_buffer_or_die(max_data_pkt);
   }

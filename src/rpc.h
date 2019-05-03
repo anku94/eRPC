@@ -283,7 +283,8 @@ class Rpc {
    * value instead of reference since eRPC provides no application callback for
    * when the response can be re-used or freed.
    */
-  void enqueue_response(ReqHandle *req_handle, MsgBuffer *resp_msgbuf);
+  void enqueue_response(ReqHandle *req_handle, MsgBuffer *resp_msgbuf,
+                        bool encrypt = true);
 
   /// Run the event loop for some milliseconds
   inline void run_event_loop(size_t timeout_ms) {

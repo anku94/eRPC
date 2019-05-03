@@ -127,6 +127,9 @@ void Nexus::unregister_hook(Hook *hook) {
 
 int Nexus::register_req_func(uint8_t req_type, erpc_req_func_t req_func,
                              ReqFuncType req_func_type) {
+
+  // req_func_type = ReqFuncType::kBackground;
+
   char issue_msg[kMaxIssueMsgLen];  // The basic issue message
   sprintf(issue_msg,
           "eRPC Nexus: Failed to register handlers for request type %u. Issue",

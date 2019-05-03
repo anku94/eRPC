@@ -54,6 +54,7 @@ void cont_func(void *_c, void *_tag) {
               resp_msgbuf.get_app_data_size());
 
   assert(resp_msgbuf.get_app_data_size() == c->req_msgbufs[tag].get_app_data_size());
+
   for (size_t i = 0; i < resp_msgbuf.get_app_data_size(); i++) {
     assert(resp_msgbuf.buf[i] == static_cast<uint8_t>(tag));
   }
