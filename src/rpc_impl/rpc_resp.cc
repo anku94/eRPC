@@ -21,6 +21,8 @@ void Rpc<TTr>::enqueue_response(ReqHandle *req_handle, MsgBuffer *resp_msgbuf,
 
 #endif
 
+    _unused(encrypt);
+
   // When called from a background thread, enqueue to the foreground thread
   if (unlikely(!in_dispatch())) {
     bg_queues._enqueue_response.unlocked_push(
