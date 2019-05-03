@@ -150,14 +150,14 @@ void Rpc<TTr>::process_small_req_st(SSlot *sslot, pkthdr_t *pkthdr) {
     // suffices -- it's valid for the duration of req_func().
     req_msgbuf = MsgBuffer(pkthdr, pkthdr->msg_size);
 
-#ifdef SECURE
-    int crypto_res =
-      aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size());
+// #ifdef SECURE
+//     int crypto_res =
+//       aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size());
 
-    _unused(crypto_res);
+//     _unused(crypto_res);
 
-    assert(crypto_res >= 0);
-#endif
+//     assert(crypto_res >= 0);
+// #endif
 
     req_func.req_func(static_cast<ReqHandle *>(sslot), context);
     return;
@@ -177,13 +177,13 @@ void Rpc<TTr>::process_small_req_st(SSlot *sslot, pkthdr_t *pkthdr) {
     memcpy(req_msgbuf.get_pkthdr_0(), pkthdr,
            pkthdr->msg_size + sizeof(pkthdr_t));
 
-#ifdef SECURE
-    int crypto_res =
-      aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size());
+// #ifdef SECURE
+//     int crypto_res =
+//       aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size());
 
-    _unused(crypto_res);
-    assert(crypto_res == 0);
-#endif
+//     _unused(crypto_res);
+//     assert(crypto_res == 0);
+// #endif
 
     submit_bg_req_st(sslot);
     return;
