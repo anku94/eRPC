@@ -1,4 +1,5 @@
 #include "crypto.h"
+#include "common.h"
 #ifdef CRYPTO_VERBOSE
 #include <iostream>
 #endif
@@ -82,6 +83,7 @@ int aes_gcm_encrypt(unsigned char *data_buf, int data_len) {
   unsigned char *tag_ptr = data_buf + data_len + CRYPTO_IV_LEN;
 
   int ret = aes_gcm_encrypt_internal(data_buf, data_len, iv_ptr, tag_ptr);
+
   return ret;
 }
 

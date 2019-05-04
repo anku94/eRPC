@@ -8,13 +8,27 @@ namespace erpc {
 //
 // So sslot->rx_msgbuf may or may not be valid at this point.
 template <class TTr>
-void Rpc<TTr>::enqueue_response(ReqHandle *req_handle, MsgBuffer *resp_msgbuf) {
-    // When called from a background thread, enqueue to the foreground thread
-    if (unlikely(!in_dispatch())) {
-        bg_queues._enqueue_response.unlocked_push(
-                enq_resp_args_t(req_handle, resp_msgbuf));
-        return;
-    }
+void Rpc<TTr>::enqueue_response(ReqHandle *req_handle, MsgBuffer *resp_msgbuf,
+                                bool encrypt) {
+#ifdef SECURE
+  // TODO: Grab key from session
+  if (encrypt) {
+    int encrypt_res =
+        aes_gcm_encrypt(resp_msgbuf->buf, resp_msgbuf->get_app_data_size());
+    assert(encrypt_res >= 0);
+    _unused(encrypt_res);
+  }
+
+#endif
+
+    _unused(encrypt);
+
+  // When called from a background thread, enqueue to the foreground thread
+  if (unlikely(!in_dispatch())) {
+    bg_queues._enqueue_response.unlocked_push(
+        enq_resp_args_t(req_handle, resp_msgbuf));
+    return;
+  }
 
     // If we're here, we're in the dispatch thread
     SSlot *sslot = static_cast<SSlot *>(req_handle);
@@ -36,33 +50,23 @@ void Rpc<TTr>::enqueue_response(ReqHandle *req_handle, MsgBuffer *resp_msgbuf) {
         return;    // During session reset, don't add packets to TX burst
     }
 
-#ifdef SECURE
-    // TODO: Grab key from session
+  // Fill in packet 0's header
+  pkthdr_t *resp_pkthdr_0 = resp_msgbuf->get_pkthdr_0();
+  resp_pkthdr_0->req_type = sslot->server_info.req_type;
+  resp_pkthdr_0->msg_size = resp_msgbuf->data_size;
+  resp_pkthdr_0->dest_session_num = session->remote_session_num;
+  resp_pkthdr_0->pkt_type = kPktTypeResp;
+  resp_pkthdr_0->pkt_num = sslot->server_info.sav_num_req_pkts - 1;
+  resp_pkthdr_0->req_num = sslot->cur_req_num;
 
-    int encrypt_res =
-        aes_gcm_encrypt(resp_msgbuf->buf, resp_msgbuf->get_app_data_size());
-
-    assert(encrypt_res >= 0);
-#endif
-
-    // Fill in packet 0's header
-    pkthdr_t *resp_pkthdr_0 = resp_msgbuf->get_pkthdr_0();
-    resp_pkthdr_0->req_type = sslot->server_info.req_type;
-    resp_pkthdr_0->msg_size = resp_msgbuf->data_size;
-    resp_pkthdr_0->dest_session_num = session->remote_session_num;
-    resp_pkthdr_0->pkt_type = kPktTypeResp;
-    resp_pkthdr_0->pkt_num = sslot->server_info.sav_num_req_pkts - 1;
-    resp_pkthdr_0->req_num = sslot->cur_req_num;
-
-    // Fill in non-zeroth packet headers, if any
-    if (resp_msgbuf->num_pkts > 1) {
-        // Headers for non-zeroth packets are created by copying the 0th header, and
-        // changing only the required fields.
-        for (size_t i = 1; i < resp_msgbuf->num_pkts; i++) {
-            pkthdr_t *resp_pkthdr_i = resp_msgbuf->get_pkthdr_n(i);
-            *resp_pkthdr_i = *resp_pkthdr_0;
-            resp_pkthdr_i->pkt_num = resp_pkthdr_0->pkt_num + i;
-        }
+  // Fill in non-zeroth packet headers, if any
+  if (resp_msgbuf->num_pkts > 1) {
+    // Headers for non-zeroth packets are created by copying the 0th header, and
+    // changing only the required fields.
+    for (size_t i = 1; i < resp_msgbuf->num_pkts; i++) {
+      pkthdr_t *resp_pkthdr_i = resp_msgbuf->get_pkthdr_n(i);
+      *resp_pkthdr_i = *resp_pkthdr_0;
+      resp_pkthdr_i->pkt_num = resp_pkthdr_0->pkt_num + i;
     }
 
     // Fill in the slot and reset queueing progress
@@ -102,8 +106,8 @@ void Rpc<TTr>::process_resp_one_st(SSlot *sslot, const pkthdr_t *pkthdr,
     ci.num_rx++;
     ci.progress_tsc = ev_loop_tsc;
 
-    // TODO: Ensure that resizing resp buffer to req buffer - hdrlen does
-    // not cause overwrites/memory corruption anywhere
+  // TODO: Ensure that resizing resp buffer to req buffer - hdrlen does
+  // not cause overwrites/memory corruption anywhere
 
     // Special handling for single-packet responses
     if (likely(pkthdr->msg_size <= TTr::kMaxDataPerPkt)) {
@@ -178,8 +182,10 @@ void Rpc<TTr>::process_resp_one_st(SSlot *sslot, const pkthdr_t *pkthdr,
 
 #ifdef SECURE
 
-    int decrypt_res
-        = aes_gcm_decrypt(resp_msgbuf->buf, resp_msgbuf->get_app_data_size());
+  int decrypt_res =
+      aes_gcm_decrypt(resp_msgbuf->buf, resp_msgbuf->get_app_data_size());
+
+  _unused(decrypt_res);
 
     assert(decrypt_res >= 0);
 

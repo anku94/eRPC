@@ -188,9 +188,6 @@ class Rpc {
     new_data_size += CRYPTO_HDR_LEN;
 #endif
 
-    fprintf(stderr, "Resize to: %zu, max: %zu\n", new_data_size,
-            msg_buffer->max_data_size);
-
     assert(new_data_size <= msg_buffer->max_data_size);
 
     // Avoid division for single-packet data sizes
@@ -286,7 +283,8 @@ class Rpc {
    * value instead of reference since eRPC provides no application callback for
    * when the response can be re-used or freed.
    */
-  void enqueue_response(ReqHandle *req_handle, MsgBuffer *resp_msgbuf);
+  void enqueue_response(ReqHandle *req_handle, MsgBuffer *resp_msgbuf,
+                        bool encrypt = true);
 
   /// Run the event loop for some milliseconds
   inline void run_event_loop(size_t timeout_ms) {
@@ -386,7 +384,7 @@ class Rpc {
 
   /// Return the data size in bytes that can be sent in one request or response
   static inline size_t get_max_msg_size() {
-#ifdef CRYPTO
+#ifdef SECURE
     return kMaxMsgSize - CRYPTO_HDR_LEN;
 #else
     return kMaxMsgSize;
@@ -602,8 +600,6 @@ class Rpc {
    */
   static inline size_t max_app_data_size_for_packets(size_t n_packets) {
     size_t max_data_size = TTr::kMaxDataPerPkt * n_packets;
-
-    fprintf(stderr, "Transport Max Data Pkt: %zu\n", max_data_size);
 
 #ifdef SECURE
     return max_data_size - CRYPTO_HDR_LEN;

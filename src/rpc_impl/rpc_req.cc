@@ -29,13 +29,16 @@ void Rpc<TTr>::enqueue_request(int session_num, uint8_t req_type,
     // Should probably not be done in the dispatch thread
     // TODO: handshake, for now assume shared key is somehow available
 
-    fprintf(stderr, "Encrypting req msgbuf, appdatalen: %zu\n",
-      req_msgbuf->get_app_data_size());
+  // fprintf(stderr, "------> Msg Byte: %d\n", req_msgbuf->buf[0]);
 
     int encrypt_res =
       aes_gcm_encrypt(req_msgbuf->buf, req_msgbuf->get_app_data_size());
 
-    assert(encrypt_res >= 0);
+  // fprintf(stderr, "=====> Msg Byte encrypted: %d\n", req_msgbuf->buf[0]);
+
+  _unused(encrypt_res);
+
+  assert(encrypt_res >= 0);
 
 #endif
 
@@ -152,20 +155,19 @@ void Rpc<TTr>::process_small_req_st(SSlot *sslot, pkthdr_t *pkthdr) {
         req_msgbuf = MsgBuffer(pkthdr, pkthdr->msg_size);
 
 #ifdef SECURE
-        fprintf(stderr, "decrypting single packet req: %zu\n", req_msgbuf.get_app_data_size());
+    int crypto_res =
+        aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size());
 
-        int crypto_res =
-            aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size());
+    _unused(crypto_res);
 
         assert(crypto_res >= 0);
 #endif
 
-        req_func.req_func(static_cast<ReqHandle *>(sslot), context);
-        return;
-    } else {
-        // For background request handlers, we need a RX ring--independent copy of
-        // the request. The allocated req_msgbuf is freed by the background thread.
-        fprintf(stderr, "===> Pkthdr msg size: %zu\n", pkthdr->msg_size);
+    req_func.req_func(static_cast<ReqHandle *>(sslot), context);
+    return;
+  } else {
+    // For background request handlers, we need a RX ring--independent copy of
+    // the request. The allocated req_msgbuf is freed by the background thread.
 #ifdef SECURE
         // Dirty hack, ideally there should be two alloc_msg_buffer's
         // One that transparently allocates a SECURE_HEADER, used by apps
@@ -179,14 +181,13 @@ void Rpc<TTr>::process_small_req_st(SSlot *sslot, pkthdr_t *pkthdr) {
         memcpy(req_msgbuf.get_pkthdr_0(), pkthdr,
                      pkthdr->msg_size + sizeof(pkthdr_t));
 
-#ifdef SECURE
-        fprintf(stderr, "decrypting single packet req\n");
+    // #ifdef SECURE
+    //     int crypto_res =
+    //       aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size());
 
-        int crypto_res =
-            aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size());
-
-        assert(crypto_res == 0);
-#endif
+    //     _unused(crypto_res);
+    //     assert(crypto_res == 0);
+    // #endif
 
         submit_bg_req_st(sslot);
         return;
@@ -297,15 +298,49 @@ void Rpc<TTr>::process_large_req_one_st(SSlot *sslot, const pkthdr_t *pkthdr) {
     int decrypt_res
         = aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size());
 
+    // Update sslot tracking
+    sslot->cur_req_num = pkthdr->req_num;
+    sslot->server_info.num_rx = 1;
+  } else {
+    // This is not the first packet for this request
+    sslot->server_info.num_rx++;
+  }
+
+  // Send a credit return for every request packet except the last in sequence
+  if (pkthdr->pkt_num != req_msgbuf.num_pkts - 1) enqueue_cr_st(sslot, pkthdr);
+
+  // Header 0 was copied earlier. Request packet's index = packet number.
+  copy_data_to_msgbuf(&req_msgbuf, pkthdr->pkt_num, pkthdr);
+
+  // Invoke the request handler iff we have all the request packets
+  if (sslot->server_info.num_rx != req_msgbuf.num_pkts) return;
+
+  const ReqFunc &req_func = req_func_arr[pkthdr->req_type];
+
+  // Remember request metadata for enqueue_response(). req_type was invalidated
+  // on previous enqueue_response(). Setting it implies that an enqueue_resp()
+  // is now pending; this invariant is used to safely reset sessions.
+  assert(sslot->server_info.req_type == kInvalidReqType);
+  sslot->server_info.req_type = pkthdr->req_type;
+  sslot->server_info.req_func_type = req_func.req_func_type;
+
+  // // req_msgbuf here is independent of the RX ring, so don't make another
+  // copy
+  if (likely(!req_func.is_background())) {
+#ifdef SECURE
+
+    int decrypt_res =
+        aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size());
+
+    _unused(decrypt_res);
+
     assert(decrypt_res >= 0);
 
 #endif
-    // req_msgbuf here is independent of the RX ring, so don't make another copy
-    if (likely(!req_func.is_background())) {
-        req_func.req_func(static_cast<ReqHandle *>(sslot), context);
-    } else {
-        submit_bg_req_st(sslot);
-    }
+    req_func.req_func(static_cast<ReqHandle *>(sslot), context);
+  } else {
+    submit_bg_req_st(sslot);
+  }
 }
 
 FORCE_COMPILE_TRANSPORTS
