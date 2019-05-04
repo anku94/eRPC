@@ -10,15 +10,15 @@ namespace erpc {
 template <class TTr>
 void Rpc<TTr>::enqueue_response(ReqHandle *req_handle, MsgBuffer *resp_msgbuf,
                                 bool encrypt) {
+  SSlot *sslot = static_cast<SSlot *>(req_handle);
+  Session *session = sslot->session;
 #ifdef SECURE
-  // TODO: Grab key from session
   if (encrypt) {
     int encrypt_res =
-        aes_gcm_encrypt(resp_msgbuf->buf, resp_msgbuf->get_app_data_size());
+        aes_gcm_encrypt(resp_msgbuf->buf, resp_msgbuf->get_app_data_size(), session->secret);
     assert(encrypt_res >= 0);
     _unused(encrypt_res);
   }
-
 #endif
 
     _unused(encrypt);
@@ -31,11 +31,9 @@ void Rpc<TTr>::enqueue_response(ReqHandle *req_handle, MsgBuffer *resp_msgbuf,
   }
 
   // If we're here, we're in the dispatch thread
-  SSlot *sslot = static_cast<SSlot *>(req_handle);
   sslot->server_info.sav_num_req_pkts = sslot->server_info.req_msgbuf.num_pkts;
   bury_req_msgbuf_server_st(sslot);  // Bury the possibly-dynamic req MsgBuffer
 
-  Session *session = sslot->session;
   if (unlikely(!session->is_connected())) {
     // A session reset could be waiting for this enqueue_response()
     assert(session->state == SessionState::kResetInProgress);
@@ -185,7 +183,7 @@ void Rpc<TTr>::process_resp_one_st(SSlot *sslot, const pkthdr_t *pkthdr,
 #ifdef SECURE
 
   int decrypt_res =
-      aes_gcm_decrypt(resp_msgbuf->buf, resp_msgbuf->get_app_data_size());
+      aes_gcm_decrypt(resp_msgbuf->buf, resp_msgbuf->get_app_data_size(), session->secret);
 
   _unused(decrypt_res);
 

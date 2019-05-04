@@ -4,6 +4,10 @@
 #include <mutex>
 #include <queue>
 
+#ifdef SECURE
+#include <crypto.h>
+#endif /* SECURE */
+
 #include "cc/timely.h"
 #include "cc/timing_wheel.h"
 #include "common.h"
@@ -59,6 +63,12 @@ class Session {
 
  public:
   enum class Role : int { kServer, kClient };
+#ifdef SECURE
+  // Ironic as it is this needs to be public for nexus to have direct access, perhaps the design should change FIXME?
+  unsigned char secret[CRYPTO_GCM_KEY_LEN];
+  uint16_t secret_size;
+  // BIGNUM *secret
+#endif /* SECURE */
 
  private:
   Session(Role role, conn_req_uniq_token_t uniq_token, double freq_ghz,
@@ -129,7 +139,7 @@ class Session {
     if (is_client()) return trim_hostname(server.hostname);
     return trim_hostname(client.hostname);
   }
-
+  
   const Role role;  ///< The role (server/client) of this session endpoint
   const conn_req_uniq_token_t uniq_token;  ///< A cluster-wide unique token
   const double freq_ghz;                   ///< TSC frequency

@@ -34,7 +34,7 @@ void Nexus::bg_thread_func(BgThreadCtx ctx) {
             (static_cast<ReqHandle *>(s))->get_req_msgbuf();
 
         int decrypt_res =
-            aes_gcm_decrypt(req_msgbuf->buf, req_msgbuf->get_app_data_size());
+            aes_gcm_decrypt(req_msgbuf->buf, req_msgbuf->get_app_data_size(), s->session->secret);
 
         _unused(decrypt_res);
 

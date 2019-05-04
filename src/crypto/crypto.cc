@@ -12,15 +12,17 @@
 /**
  * @brief
  *
- * @param data_buf
+ * @param data_buf The buffer storing the user's data
  * @param data_len length of data including the SECURE header
+ * @param key The gcm key
  * @param iv_ptr Pointer to the AES-GCM IV (Initialisation Vector)
- * @param tag_buf
+ * @param tag_buf 
  *
  * @return Error Code (0)
  */
 namespace erpc {
 int aes_gcm_encrypt_internal(unsigned char *data_buf, int data_len,
+                             unsigned char *key,
                              const unsigned char *iv_ptr,
                              unsigned char *tag_ptr) {
   int ct_len = 0;
@@ -35,7 +37,7 @@ int aes_gcm_encrypt_internal(unsigned char *data_buf, int data_len,
 #endif
 
   // TODO: replace gcm_key with negotiated key
-  EVP_EncryptInit_ex(ctx, _CRYPTO_CIPHER, NULL, gcm_key, iv_ptr);
+  EVP_EncryptInit_ex(ctx, _CRYPTO_CIPHER, NULL, key, iv_ptr);
 
   EVP_EncryptUpdate(ctx, data_buf, &tmplen,
                     reinterpret_cast<const unsigned char *>(data_buf),
@@ -74,15 +76,16 @@ int aes_gcm_encrypt_internal(unsigned char *data_buf, int data_len,
  *
  * @param void* data_buf
  * @param int data_len
- *
+ * @param key The gcm key
+ * 
  * @return Error Code (0)
  */
-int aes_gcm_encrypt(unsigned char *data_buf, int data_len) {
+int aes_gcm_encrypt(unsigned char *data_buf, int data_len, unsigned char *key) {
   // We assume 28-byte headroom at the end of databuf[data_len]
   unsigned char *iv_ptr = data_buf + data_len;
   unsigned char *tag_ptr = data_buf + data_len + CRYPTO_IV_LEN;
 
-  int ret = aes_gcm_encrypt_internal(data_buf, data_len, iv_ptr, tag_ptr);
+  int ret = aes_gcm_encrypt_internal(data_buf, data_len, key, iv_ptr, tag_ptr);
 
   return ret;
 }
@@ -90,21 +93,23 @@ int aes_gcm_encrypt(unsigned char *data_buf, int data_len) {
 /**
  * @brief
  *
- * @param data_buf
+ * @param data_buf The buffer storing the user's data
  * @param data_len length of data including the SECURE header
- * @param iv_ptr
+ * @param key The gcm key
+ * @param iv_ptr Pointer to the initialisation vector
  * @param tag_ptr
  * @return 0 if successful, < 0 otherwise
  */
 
 int aes_gcm_decrypt_internal(unsigned char *data_buf, int data_len,
+                             unsigned char *key,
                              const unsigned char *iv_ptr,
                              unsigned char *tag_ptr) {
   EVP_CIPHER_CTX *ctx;
   int pt_len = 0, tmplen = 0, rv;
 
   ctx = EVP_CIPHER_CTX_new();
-  EVP_DecryptInit_ex(ctx, _CRYPTO_CIPHER, NULL, gcm_key, iv_ptr);
+  EVP_DecryptInit_ex(ctx, _CRYPTO_CIPHER, NULL, key, iv_ptr);
 
   EVP_DecryptUpdate(ctx, data_buf, &tmplen, data_buf, data_len);
   pt_len += tmplen;
@@ -128,15 +133,16 @@ int aes_gcm_decrypt_internal(unsigned char *data_buf, int data_len,
  *
  * @param data_buf The pointer to the buffer with the user usable buffer first 
  *  then the secure header
- * @param data_len length of data excluding the SECURE header
+ * @param data_len length of data INCLUDING the SECURE header
+ * @param key The gcm key
+ * 
  * @return int Error Codes
  */
-
-int aes_gcm_decrypt(unsigned char *data_buf, int data_len) {
+int aes_gcm_decrypt(unsigned char *data_buf, int data_len, unsigned char *key) {
   unsigned char *iv_ptr = data_buf + data_len;
   unsigned char *tag_ptr = data_buf + data_len + CRYPTO_IV_LEN;
 
-  int ret = aes_gcm_decrypt_internal(data_buf, data_len, iv_ptr, tag_ptr);
+  int ret = aes_gcm_decrypt_internal(data_buf, data_len, key, iv_ptr, tag_ptr);
 
   return ret;
 }
