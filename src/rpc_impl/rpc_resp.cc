@@ -181,6 +181,7 @@ void Rpc<TTr>::process_resp_one_st(SSlot *sslot, const pkthdr_t *pkthdr,
     session->client_info.enq_req_backlog.pop();
   }
 
+  if (likely(_cont_etid == kInvalidBgETid)) {
 #ifdef SECURE
 
   int decrypt_res =
@@ -192,7 +193,6 @@ void Rpc<TTr>::process_resp_one_st(SSlot *sslot, const pkthdr_t *pkthdr,
 
 #endif
 
-  if (likely(_cont_etid == kInvalidBgETid)) {
     _cont_func(context, _tag);
   } else {
     submit_bg_resp_st(_cont_func, _tag, _cont_etid);

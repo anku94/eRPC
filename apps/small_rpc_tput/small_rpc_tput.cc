@@ -406,9 +406,9 @@ int main(int argc, char **argv) {
                   "Too few ring buffers");
 
   erpc::Nexus nexus(erpc::get_uri_for_process(FLAGS_process_id),
-                    FLAGS_numa_node, 2);
-  nexus.register_req_func(kAppReqType, req_handler, erpc::ReqFuncType::kForeground);
-  nexus.register_req_func(kPingReqHandlerType, ping_req_handler, erpc::ReqFuncType::kForeground);
+                    FLAGS_numa_node, 4);
+  nexus.register_req_func(kAppReqType, req_handler, erpc::ReqFuncType::kBackground);
+  nexus.register_req_func(kPingReqHandlerType, ping_req_handler, erpc::ReqFuncType::kBackground);
 
   std::vector<std::thread> threads(FLAGS_num_threads);
   auto *app_stats = new app_stats_t[FLAGS_num_threads];
