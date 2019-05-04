@@ -113,6 +113,9 @@ void Rpc<TTr>::handle_connect_req_st(const SmPkt &sm_pkt) {
 
   session->local_session_num = session->server.session_num;
   session->remote_session_num = session->client.session_num;
+
+  // Add server endpoint info created above to resp. No need to add client info.
+  SmPkt resp_sm_pkt = sm_construct_resp(sm_pkt, SmErrType::kNoError);
 #ifdef SECURE
   BIGNUM* peer_key;
   if (0 == (BN_hex2bn(&peer_key, &sm_pkt.pub_key[0]))) {
@@ -120,20 +123,23 @@ void Rpc<TTr>::handle_connect_req_st(const SmPkt &sm_pkt) {
     return;
   }
   if(0 > (session->secret_size = DH_compute_key(&session->secret[0], peer_key, dh))) {
-    assert(0); // FIXME
-  }
-  if (0 == (BN_bn2hex(&sm_pkt.pub_key[0], dh->pub_key))) {
     sm_pkt_udp_tx_st(sm_construct_resp(sm_pkt, SmErrType::kCryptoError));
     return;
   }
+  const BIGNUM *pub_key;
+  DH_get0_key(dh, &pub_key, NULL);
+  char* key = BN_bn2hex(pub_key);
+  if (key == NULL) {
+    sm_pkt_udp_tx_st(sm_construct_resp(sm_pkt, SmErrType::kCryptoError));
+    return;
+  }
+  memcpy(&resp_sm_pkt.pub_key[0], key, CRYPTO_GCM_HEX_KEY_LEN);
 #endif /* SECURE */
   
 
   alloc_ring_entries();
   session_vec.push_back(session);  // Add to list of all sessions
 
-  // Add server endpoint info created above to resp. No need to add client info.
-  SmPkt resp_sm_pkt = sm_construct_resp(sm_pkt, SmErrType::kNoError);
   resp_sm_pkt.server = session->server;
 
   LOG_INFO("%s: None. Sending response.\n", issue_msg);

@@ -90,10 +90,14 @@ void Rpc<TTr>::send_sm_req_st(Session *session) {
   sm_pkt.client = session->client;
   sm_pkt.server = session->server;
 #ifdef SECURE
-  if (0 == BN_bn2hex(&sm_pkt.pub_key[0], dh->pub_key)) {
+  const BIGNUM *pub_key;
+  DH_get0_key(dh, &pub_key, NULL);
+  char* key = BN_bn2hex(pub_key);
+  if (key == NULL) {
     assert(0); // FIXME
     return;
   }
+  memcpy(&sm_pkt.pub_key[0], key, CRYPTO_GCM_HEX_KEY_LEN);
 #endif /* SECURE */
 
   sm_pkt_udp_tx_st(sm_pkt);
