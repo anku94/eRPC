@@ -138,13 +138,13 @@ TEST(OneSmallRpc, Foreground) {
   launch_helper();
 }
 
-// TEST(OneSmallRpc, Background) {
-  // config_num_sessions = 1;
-  // config_num_bg_threads = 1;
-  // config_rpcs_per_session = 1;
-  // config_msg_size = Rpc<CTransport>::max_app_data_size_for_packets(1u);
-  // launch_helper();
-// }
+TEST(OneSmallRpc, Background) {
+  config_num_sessions = 1;
+  config_num_bg_threads = 1;
+  config_rpcs_per_session = 1;
+  config_msg_size = Rpc<CTransport>::max_app_data_size_for_packets(1u);
+  launch_helper();
+}
 
 // TEST(MultiSmallRpcOneSession, Foreground) {
   // config_num_sessions = 1;
