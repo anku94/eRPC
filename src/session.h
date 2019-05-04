@@ -4,6 +4,10 @@
 #include <mutex>
 #include <queue>
 
+#ifdef SECURE
+#include <crypto.h>
+#endif /* SECURE */
+
 #include "cc/timely.h"
 #include "cc/timing_wheel.h"
 #include "common.h"
@@ -129,7 +133,11 @@ class Session {
     if (is_client()) return trim_hostname(server.hostname);
     return trim_hostname(client.hostname);
   }
-
+#ifdef SECURE
+  unsigned char secret[CRYPTO_GCM_BN_KEY_LEN];
+  uint16_t secret_size;
+  // BIGNUM *secret
+#endif /* SECURE */
   const Role role;  ///< The role (server/client) of this session endpoint
   const conn_req_uniq_token_t uniq_token;  ///< A cluster-wide unique token
   const double freq_ghz;                   ///< TSC frequency

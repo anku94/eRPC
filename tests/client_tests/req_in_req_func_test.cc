@@ -144,7 +144,8 @@ void primary_cont_func(void *_c, void *_tag) {
   ReqHandle *req_handle_cp = srv_req_info->req_handle_cp;
 
 #ifdef SECURE
-  aes_gcm_decrypt(srv_req_info->req_msgbuf_pb.buf, srv_req_info->req_msgbuf_pb.get_app_data_size());
+  // FIXME key
+  aes_gcm_decrypt(srv_req_info->req_msgbuf_pb.buf, srv_req_info->req_msgbuf_pb.get_app_data_size(), erpc::gcm_key);
 #endif
 
   assert(resp_msgbuf_pb.get_app_data_size() == req_size_cp);

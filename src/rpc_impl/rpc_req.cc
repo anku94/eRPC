@@ -32,7 +32,7 @@ void Rpc<TTr>::enqueue_request(int session_num, uint8_t req_type,
   // fprintf(stderr, "------> Msg Byte: %d\n", req_msgbuf->buf[0]);
 
     int encrypt_res =
-      aes_gcm_encrypt(req_msgbuf->buf, req_msgbuf->get_app_data_size());
+      aes_gcm_encrypt(req_msgbuf->buf, req_msgbuf->get_app_data_size(), session->key);
 
   // fprintf(stderr, "=====> Msg Byte encrypted: %d\n", req_msgbuf->buf[0]);
 
@@ -156,7 +156,7 @@ void Rpc<TTr>::process_small_req_st(SSlot *sslot, pkthdr_t *pkthdr) {
 
 #ifdef SECURE
     int crypto_res =
-        aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size());
+        aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size(), sslot->session->key);
 
     _unused(crypto_res);
 
@@ -296,7 +296,7 @@ void Rpc<TTr>::process_large_req_one_st(SSlot *sslot, const pkthdr_t *pkthdr) {
 #ifdef SECURE
 
     int decrypt_res
-        = aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size());
+        = aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size(), sslot->session->key);
 
     // Update sslot tracking
     sslot->cur_req_num = pkthdr->req_num;
@@ -330,7 +330,7 @@ void Rpc<TTr>::process_large_req_one_st(SSlot *sslot, const pkthdr_t *pkthdr) {
 #ifdef SECURE
 
     int decrypt_res =
-        aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size());
+        aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size(), sslot->session->key);
 
     _unused(decrypt_res);
 

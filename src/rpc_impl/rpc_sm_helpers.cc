@@ -4,6 +4,10 @@
  */
 #include "rpc.h"
 
+#ifdef SECURE
+#include <crypto.h>
+#endif /* SECURE */
+
 namespace erpc {
 
 template <class TTr>
@@ -45,12 +49,14 @@ void Rpc<TTr>::bury_session_st(Session *session) {
   //
   // XXX: Which other MsgBuffers do we need to free? Which MsgBuffers are
   // guaranteed to have been freed at this point?
-
   if (session->is_server()) {
     for (const SSlot &sslot : session->sslot_arr) {
       free_msg_buffer(sslot.pre_resp_msgbuf);  // Prealloc buf is always valid
     }
   }
+#ifdef SECURE
+  BN_free(session->peerkey);
+#endif /* SECURE */
 
   session_vec.at(session->local_session_num) = nullptr;
   delete session;  // This does nothing except free the session memory
@@ -83,6 +89,13 @@ void Rpc<TTr>::send_sm_req_st(Session *session) {
   sm_pkt.uniq_token = session->uniq_token;
   sm_pkt.client = session->client;
   sm_pkt.server = session->server;
+#ifdef SECURE
+  if (0 == BN_bn2hex(&sm_pkt.pub_key, session->dh->pub_key)) {
+    assert(0); // FIXME
+    return;
+  }
+#endif /* SECURE */
+
   sm_pkt_udp_tx_st(sm_pkt);
 }
 
