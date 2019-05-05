@@ -49,6 +49,19 @@ struct enq_resp_args_t {
       : req_handle(req_handle), resp_msgbuf(resp_msgbuf) {}
 };
 
+// The items for a continuation in queue
+struct enq_cont_args_t {
+  erpc_cont_func_t cont_func;
+  void *tag;
+  MsgBuffer *resp_msgbuf;
+  // Don't need context since it's available in Rpc ob
+
+  enq_cont_args_t() {}
+  enq_cont_args_t(erpc_cont_func_t &cont_func, void *tag,
+                  MsgBuffer *resp_msgbuf)
+      : cont_func(cont_func), tag(tag), resp_msgbuf(resp_msgbuf) {}
+};
+
 // Forward declaration for friendship
 template <typename T>
 class Rpc;

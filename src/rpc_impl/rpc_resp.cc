@@ -2,6 +2,23 @@
 
 namespace erpc {
 
+template <class TTr>
+void Rpc<TTr>::submit_cr_decr_resp_st(erpc_cont_func_t &cont_func, void *tag,
+    MsgBuffer *resp_msgbuf) {
+  assert(in_dispatch());
+  assert(nexus->num_cr_threads > 0);
+
+  const size_t cr_etid = fast_rand.next_u32() % nexus->num_cr_threads;
+  auto *req_queue = nexus_hook.cr_req_queue_arr[cr_etid];
+
+  auto args = enq_cont_args_t(cont_func, tag, resp_msgbuf);
+
+  req_queue->unlocked_push(Nexus::CrWorkItem::make_resp_decr_item(
+        args,
+        &cr_queues._enqueue_continuation
+        ));
+}
+
 // For both foreground and background request handlers, enqueue_response() may
 // be called before or after the request handler returns to the event loop, at
 // which point the event loop buries the request MsgBuffer.
@@ -177,12 +194,14 @@ void Rpc<TTr>::process_resp_one_st(SSlot *sslot, const pkthdr_t *pkthdr,
     assert(session->client_info.sslot_free_vec.size() == 1);
     enq_req_args_t &args = session->client_info.enq_req_backlog.front();
     enqueue_request(args.session_num, args.req_type, args.req_msgbuf,
-                    args.resp_msgbuf, args.cont_func, args.tag, args.cont_etid);
+                    args.resp_msgbuf, args.cont_func, args.tag, args.cont_etid,
+                    true);
     session->client_info.enq_req_backlog.pop();
   }
 
   if (likely(_cont_etid == kInvalidBgETid)) {
 #ifdef SECURE
+#ifndef SECURE_MT
 
     int decrypt_res =
         aes_gcm_decrypt(resp_msgbuf->buf, resp_msgbuf->get_app_data_size());
@@ -191,9 +210,14 @@ void Rpc<TTr>::process_resp_one_st(SSlot *sslot, const pkthdr_t *pkthdr,
 
     assert(decrypt_res >= 0);
 
+    _cont_func(context, _tag);
+#endif
 #endif
 
-    _cont_func(context, _tag);
+#ifdef SECURE_MT
+    // make resp work item - cont_func + context + tag + resp_msgbuf
+#endif
+
   } else {
     submit_bg_resp_st(_cont_func, _tag, _cont_etid);
   }

@@ -44,20 +44,22 @@ void Nexus::bg_thread_func(BgThreadCtx ctx) {
 
         req_func.req_func(static_cast<ReqHandle *>(s), wi.context);
       } else {
-// #ifdef SECURE
+#ifdef SECURE
         // auto *c = static_cast<AppContext *>(wi.context);
         // auto msgbuf_idx = reinterpret_cast<size_t>(wi.tag);
 
         // const erpc::MsgBuffer &resp_msgbuf = c->resp_msgbuf[msgbuf_idx];
 
         // int decrypt_res =
-            // aes_gcm_decrypt(resp_msgbuf->buf, resp_msgbuf->get_app_data_size());
+        // aes_gcm_decrypt(resp_msgbuf->buf, resp_msgbuf->get_app_data_size());
 
         // _unused(decrypt_res);
 
         // assert(decrypt_res >= 0);
+        throw std::runtime_error(
+            "Decryption for background continuations not yet implemented");
 
-// #endif
+#endif
 
         // For responses, we don't have a valid sslot
         wi.cont_func(wi.context, wi.tag);

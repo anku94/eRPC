@@ -123,6 +123,11 @@ void Nexus::register_hook(Hook *hook) {
     hook->bg_req_queue_arr[i] = &bg_req_queue[i];
   }
 
+  // Install crypto job submission queues
+  for (size_t i = 0; i < num_cr_threads; i++) {
+    hook->cr_req_queue_arr[i] = &cr_req_queue[i];
+  }
+
   reg_hooks_lock.unlock();
 }
 

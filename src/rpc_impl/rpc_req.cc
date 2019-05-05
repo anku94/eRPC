@@ -4,13 +4,39 @@
 
 namespace erpc {
 
+template <class TTr>
+void Rpc<TTr>::submit_req_encrypt_st(enq_req_args_t &req_args) {
+  assert(in_dispatch()); // Haven't thought through what'd happen with bg threads
+  assert(nexus->num_cr_threads > 0);
+
+  const size_t cr_etid = fast_rand.next_u32() % nexus->num_cr_threads;
+  auto *req_queue = nexus_hook.cr_req_queue_arr[cr_etid];
+  req_queue->unlocked_push(
+      Nexus::CrWorkItem::make_req_enc_item(req_args,
+        &bg_queues._enqueue_request)
+      );
+
+  return;
+}
+
 // The cont_etid parameter is passed only when the event loop processes the
 // background threads' queue of enqueue_request calls.
 template <class TTr>
 void Rpc<TTr>::enqueue_request(int session_num, uint8_t req_type,
                                MsgBuffer *req_msgbuf, MsgBuffer *resp_msgbuf,
                                erpc_cont_func_t cont_func, void *tag,
-                               size_t cont_etid) {
+                               size_t cont_etid, bool internal_call) {
+#ifdef SECURE_MT
+  if (!internal_call) {
+    // add to encryption queue and return
+    auto req_args = enq_req_args_t(session_num, req_type, req_msgbuf,
+                                   resp_msgbuf, cont_func, tag, get_etid());
+
+    submit_req_encrypt_st(req_args);
+    return;
+  }
+#endif
+
   // When called from a background thread, enqueue to the foreground thread
   if (unlikely(!in_dispatch())) {
     auto req_args = enq_req_args_t(session_num, req_type, req_msgbuf,

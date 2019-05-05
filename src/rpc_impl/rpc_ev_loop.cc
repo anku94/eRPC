@@ -27,6 +27,10 @@ void Rpc<TTr>::run_event_loop_do_one_st() {
     process_bg_queues_enqueue_response_st();
   }
 
+#ifdef CRYPTO_MT
+  process_cr_queues_enqueue_continuation_st();
+#endif
+
   // Check for packet loss if we're in a new epoch. ev_loop_tsc is stale by
   // less than one event loop iteration, which is negligible compared to epoch.
   if (unlikely(ev_loop_tsc - pkt_loss_scan_tsc > rpc_pkt_loss_scan_cycles)) {

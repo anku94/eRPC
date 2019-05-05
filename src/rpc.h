@@ -261,7 +261,8 @@ class Rpc {
    */
   void enqueue_request(int session_num, uint8_t req_type, MsgBuffer *req_msgbuf,
                        MsgBuffer *resp_msgbuf, erpc_cont_func_t cont_func,
-                       void *tag, size_t cont_etid = kInvalidBgETid);
+                       void *tag, size_t cont_etid = kInvalidBgETid,
+                       bool internal_call = false);
 
   /**
    * @brief Enqueue a response for transmission at the server. See ReqHandle
@@ -855,6 +856,14 @@ class Rpc {
   void process_comps_st();
 
   /**
+   * @brief Submit a request to encrypt-pool for encryption
+   *
+   * @param args Packaged request args
+   */
+
+  void submit_req_encrypt_st(enq_req_args_t &req_args);
+
+  /**
    * @brief Submit a request work item to a random background thread
    *
    * @param sslot Session sslot with a complete request. Used only for request
@@ -874,6 +883,20 @@ class Rpc {
    */
   void submit_bg_resp_st(erpc_cont_func_t cont_func, void *tag, size_t bg_etid);
 
+  /**
+   * @brief Submit continuation on a queue for decryption in a crypto thread
+   *
+   * @param cont_func The continuation to invoke
+   *
+   * @param tag The tag of the completed request. Used only for response work
+   * item types.
+   *
+   * @param resp_msgbuf The message buffer to decrypt, on which the continuation
+   * invokes
+   */
+  void submit_cr_decr_resp_st(erpc_cont_func_t &cont_func, void *tag,
+                              MsgBuffer *resp_msgbuf);
+
   //
   // Queue handlers
   //
@@ -889,6 +912,9 @@ class Rpc {
 
   /// Process the responses enqueued by background threads
   void process_bg_queues_enqueue_response_st();
+
+  /// Process continuations enqueued by crypto threads
+  void process_cr_queues_enqueue_continuation_st();
 
   /**
    * @brief Check if the caller can inject faults
@@ -1064,6 +1090,10 @@ class Rpc {
     MtQueue<enq_req_args_t> _enqueue_request;
     MtQueue<enq_resp_args_t> _enqueue_response;
   } bg_queues;
+
+  struct {
+    MtQueue<enq_cont_args_t> _enqueue_continuation;
+  } cr_queues;
 
   // Misc
   SlowRand slow_rand;  ///< A slow random generator for "real" randomness

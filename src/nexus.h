@@ -51,17 +51,43 @@ class Nexus {
   int register_req_func(uint8_t req_type, erpc_req_func_t req_func,
                         ReqFuncType req_func_type = ReqFuncType::kForeground);
 
- private:
-
-  enum class CrWorkItemType: bool { kClientEncr, kClientDecr };
+  enum class CrWorkItemType : bool { kClientEncr, kClientDecr };
 
   class CrWorkItem {
-    public:
-      CrWorkItem() {}
-    private:
-      void *x;
+   public:
+    CrWorkItem() {}
+
+    static inline CrWorkItem make_req_enc_item(
+        enq_req_args_t &args, MtQueue<enq_req_args_t> *req_out) {
+      CrWorkItem ret;
+      ret.wi_type = CrWorkItemType::kClientEncr;
+      ret.req_args = args;
+      ret.msg_buf = args.req_msgbuf;
+      ret.req_out_queue = req_out;
+      return ret;
+    }
+
+    static inline CrWorkItem make_resp_decr_item(
+        enq_cont_args_t &args, MtQueue<enq_cont_args_t> *cont_out) {
+      CrWorkItem ret;
+      ret.wi_type = CrWorkItemType::kClientDecr;
+      ret.cont_args = args;
+      ret.msg_buf = args.resp_msgbuf;
+      ret.cont_out_queue = cont_out;
+      return ret;
+    }
+
+    CrWorkItemType wi_type;
+    MsgBuffer *msg_buf;
+
+    enq_req_args_t req_args;
+    MtQueue<enq_req_args_t> *req_out_queue = nullptr;
+
+    enq_cont_args_t cont_args;
+    MtQueue<enq_cont_args_t> *cont_out_queue = nullptr;
   };
 
+ private:
   enum class BgWorkItemType : bool { kReq, kResp };
 
   /// A work item submitted to a background thread
@@ -110,6 +136,7 @@ class Nexus {
 
     /// Background thread request queues, installed by the Nexus
     MtQueue<BgWorkItem> *bg_req_queue_arr[kMaxBgThreads] = {nullptr};
+    MtQueue<CrWorkItem> *cr_req_queue_arr[kMaxCrThreads] = {nullptr};
 
     /// The Rpc thread's session management RX queue, installed by the Rpc.
     /// Work items from the SM thread for this Rpc are queued here.
@@ -160,11 +187,11 @@ class Nexus {
   };
 
   class CrThreadCtx {
-    public:
-      size_t cr_thread_index;
-      MtQueue<CrWorkItem> *cr_req_queue;
+   public:
+    size_t cr_thread_index;
+    MtQueue<CrWorkItem> *cr_req_queue;
 
-      volatile bool *kill_switch;
+    volatile bool *kill_switch;
   };
 
   /// The background thread
@@ -176,13 +203,13 @@ class Nexus {
   static void cr_thread_func(CrThreadCtx ctx);
 
   /// Read-mostly members exposed to Rpc threads
-  const double freq_ghz;        ///< TSC frequncy
-  const std::string hostname;   ///< The local host
-  const uint16_t sm_udp_port;   ///< UDP port for session management
-  const size_t numa_node;       ///< The NUMA node for this process
-  const size_t num_bg_threads;  ///< Background threads to process Rpc reqs
+  const double freq_ghz;            ///< TSC frequncy
+  const std::string hostname;       ///< The local host
+  const uint16_t sm_udp_port;       ///< UDP port for session management
+  const size_t numa_node;           ///< The NUMA node for this process
+  const size_t num_bg_threads;      ///< Background threads to process Rpc reqs
   const size_t num_cr_threads = 2;  ///< Background threads for encryption
-  TlsRegistry tls_registry;     ///< A thread-local registry
+  TlsRegistry tls_registry;         ///< A thread-local registry
 
   /// The ground truth for registered request functions
   std::array<ReqFunc, kReqTypeArraySize> req_func_arr;

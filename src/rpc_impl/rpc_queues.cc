@@ -61,7 +61,8 @@ void Rpc<TTr>::process_bg_queues_enqueue_request_st() {
   for (size_t i = 0; i < cmds_to_process; i++) {
     enq_req_args_t args = queue.unlocked_pop();
     enqueue_request(args.session_num, args.req_type, args.req_msgbuf,
-                    args.resp_msgbuf, args.cont_func, args.tag, args.cont_etid);
+                    args.resp_msgbuf, args.cont_func, args.tag, args.cont_etid,
+                    true);
   }
 }
 
@@ -73,7 +74,20 @@ void Rpc<TTr>::process_bg_queues_enqueue_response_st() {
 
   for (size_t i = 0; i < cmds_to_process; i++) {
     enq_resp_args_t enq_resp_args = queue.unlocked_pop();
-    enqueue_response(enq_resp_args.req_handle, enq_resp_args.resp_msgbuf, false);
+    enqueue_response(enq_resp_args.req_handle, enq_resp_args.resp_msgbuf,
+                     false);
+  }
+}
+
+template <class TTr>
+void Rpc<TTr>::process_cr_queues_enqueue_continuation_st() {
+  assert(in_dispatch());
+  auto &queue = cr_queues._enqueue_continuation;
+  const size_t cmds_to_process = queue.size;
+
+  for (size_t i = 0; i < cmds_to_process; i++) {
+    enq_cont_args_t enq_cont_args = queue.unlocked_pop();
+    enq_cont_args.cont_func(context, enq_cont_args.tag);
   }
 }
 
