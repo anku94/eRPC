@@ -894,7 +894,7 @@ class Rpc {
    * @param resp_msgbuf The message buffer to decrypt, on which the continuation
    * invokes
    */
-  void submit_cr_decr_resp_st(erpc_cont_func_t &cont_func, void *tag,
+  void submit_cr_decr_resp_st(erpc_cont_func_t cont_func, void *tag,
                               MsgBuffer *resp_msgbuf);
 
   //

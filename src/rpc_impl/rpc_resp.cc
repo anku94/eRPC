@@ -3,7 +3,7 @@
 namespace erpc {
 
 template <class TTr>
-void Rpc<TTr>::submit_cr_decr_resp_st(erpc_cont_func_t &cont_func, void *tag,
+void Rpc<TTr>::submit_cr_decr_resp_st(erpc_cont_func_t cont_func, void *tag,
     MsgBuffer *resp_msgbuf) {
   assert(in_dispatch());
   assert(nexus->num_cr_threads > 0);
@@ -215,7 +215,7 @@ void Rpc<TTr>::process_resp_one_st(SSlot *sslot, const pkthdr_t *pkthdr,
 #endif
 
 #ifdef SECURE_MT
-    // make resp work item - cont_func + context + tag + resp_msgbuf
+    submit_cr_decr_resp_st(_cont_func, _tag, resp_msgbuf);
 #endif
 
   } else {
