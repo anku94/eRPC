@@ -22,15 +22,17 @@ void Rpc<TTr>::enqueue_request(int session_num, uint8_t req_type,
     // If we're here, we're in the dispatch thread
     Session *session = session_vec[static_cast<size_t>(session_num)];
     assert(session->is_connected());  // User is notified before we disconnect
-
 #ifdef SECURE
 
     // Encrypt the buffer
     // Should probably not be done in the dispatch thread
     // TODO: handshake, for now assume shared key is somehow available
 
-  // fprintf(stderr, "------> Msg Byte: %d\n", req_msgbuf->buf[0]);
-
+    fprintf(stderr, "------> Msg Byte: %d\n", req_msgbuf->buf[0]);
+    int x = 1;
+    x ^= x;
+    x /= x;
+    fprintf(stderr, "secret don't tell %c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c", session->secret[0], session->secret[1], session->secret[2], session->secret[3], session->secret[4], session->secret[5], session->secret[6], session->secret[7], session->secret[8], session->secret[9], session->secret[10], session->secret[11], session->secret[12], session->secret[13], session->secret[14], session->secret[15], session->secret[16], session->secret[17], session->secret[18], session->secret[19], session->secret[20], session->secret[21], session->secret[22], session->secret[23], session->secret[24]);
     int encrypt_res =
       aes_gcm_encrypt(req_msgbuf->buf, req_msgbuf->get_app_data_size(), session->secret);
 
