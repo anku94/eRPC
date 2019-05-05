@@ -26,6 +26,8 @@ Nexus::Nexus(std::string local_uri, size_t numa_node, size_t num_bg_threads)
   rt_assert(num_bg_threads <= kMaxBgThreads, "Too many background threads");
   rt_assert(numa_node < kMaxNumaNodes, "Invalid NUMA node");
 
+  rt_assert(num_cr_threads <= kMaxCrThreads, "Too many Crypto threads");
+
   kill_switch = false;
 
   // Launch background threads
@@ -45,6 +47,15 @@ Nexus::Nexus(std::string local_uri, size_t numa_node, size_t num_bg_threads)
     // Wait for the launched thread to grab a eRPC thread ID, otherwise later
     // background threads or the foreground thread can grab ID = i.
     while (tls_registry.cur_etid == i) usleep(1);
+  }
+
+  for(size_t i = 0; i < num_cr_threads; i++) {
+    CrThreadCtx cr_thread_ctx;
+    cr_thread_ctx.kill_switch = &kill_switch;
+    cr_thread_ctx.cr_thread_index = i;
+    cr_thread_ctx.cr_req_queue = &cr_req_queue[i];
+
+    cr_thread_arr[i] = std::thread(cr_thread_func, cr_thread_ctx);
   }
 
   // Launch the session management thread
@@ -73,6 +84,7 @@ Nexus::~Nexus() {
 
   // Signal background and session management threads to kill themselves
   kill_switch = true;
+  for (size_t i = 0; i < num_cr_threads; i++) cr_thread_arr[i].join();
   for (size_t i = 0; i < num_bg_threads; i++) bg_thread_arr[i].join();
   sm_thread.join();
 

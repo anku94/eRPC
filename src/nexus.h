@@ -52,6 +52,16 @@ class Nexus {
                         ReqFuncType req_func_type = ReqFuncType::kForeground);
 
  private:
+
+  enum class CrWorkItemType: bool { kClientEncr, kClientDecr };
+
+  class CrWorkItem {
+    public:
+      CrWorkItem() {}
+    private:
+      void *x;
+  };
+
   enum class BgWorkItemType : bool { kReq, kResp };
 
   /// A work item submitted to a background thread
@@ -149,11 +159,21 @@ class Nexus {
     std::mutex *reg_hooks_lock;
   };
 
+  class CrThreadCtx {
+    public:
+      size_t cr_thread_index;
+      MtQueue<CrWorkItem> *cr_req_queue;
+
+      volatile bool *kill_switch;
+  };
+
   /// The background thread
   static void bg_thread_func(BgThreadCtx ctx);
 
   /// The session management thread
   static void sm_thread_func(SmThreadCtx ctx);
+
+  static void cr_thread_func(CrThreadCtx ctx);
 
   /// Read-mostly members exposed to Rpc threads
   const double freq_ghz;        ///< TSC frequncy
@@ -161,6 +181,7 @@ class Nexus {
   const uint16_t sm_udp_port;   ///< UDP port for session management
   const size_t numa_node;       ///< The NUMA node for this process
   const size_t num_bg_threads;  ///< Background threads to process Rpc reqs
+  const size_t num_cr_threads = 2;  ///< Background threads for encryption
   TlsRegistry tls_registry;     ///< A thread-local registry
 
   /// The ground truth for registered request functions
@@ -180,6 +201,8 @@ class Nexus {
 
   std::thread sm_thread;  ///< The session management thread
   MtQueue<BgWorkItem> bg_req_queue[kMaxBgThreads];  ///< Background req queues
+  MtQueue<CrWorkItem> cr_req_queue[kMaxCrThreads];  ///< Background req queues
   std::thread bg_thread_arr[kMaxBgThreads];  ///< Background thread context
+  std::thread cr_thread_arr[kMaxCrThreads];  ///< Background thread context
 };
 }  // namespace erpc
