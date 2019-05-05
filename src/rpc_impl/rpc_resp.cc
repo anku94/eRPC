@@ -199,6 +199,8 @@ void Rpc<TTr>::process_resp_one_st(SSlot *sslot, const pkthdr_t *pkthdr,
     session->client_info.enq_req_backlog.pop();
   }
 
+  fprintf(stderr, "===> Handling continuation, cont_etid: %zu\n", _cont_etid);
+
   if (likely(_cont_etid == kInvalidBgETid)) {
 #ifdef SECURE
 #ifndef SECURE_MT
