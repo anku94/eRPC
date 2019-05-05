@@ -21,7 +21,7 @@ void Rpc<TTr>::enqueue_response(ReqHandle *req_handle, MsgBuffer *resp_msgbuf,
 
 #endif
 
-    _unused(encrypt);
+  _unused(encrypt);
 
   // When called from a background thread, enqueue to the foreground thread
   if (unlikely(!in_dispatch())) {
@@ -181,18 +181,18 @@ void Rpc<TTr>::process_resp_one_st(SSlot *sslot, const pkthdr_t *pkthdr,
     session->client_info.enq_req_backlog.pop();
   }
 
+  if (likely(_cont_etid == kInvalidBgETid)) {
 #ifdef SECURE
 
-  int decrypt_res =
-      aes_gcm_decrypt(resp_msgbuf->buf, resp_msgbuf->get_app_data_size());
+    int decrypt_res =
+        aes_gcm_decrypt(resp_msgbuf->buf, resp_msgbuf->get_app_data_size());
 
-  _unused(decrypt_res);
+    _unused(decrypt_res);
 
-  assert(decrypt_res >= 0);
+    assert(decrypt_res >= 0);
 
 #endif
 
-  if (likely(_cont_etid == kInvalidBgETid)) {
     _cont_func(context, _tag);
   } else {
     submit_bg_resp_st(_cont_func, _tag, _cont_etid);
