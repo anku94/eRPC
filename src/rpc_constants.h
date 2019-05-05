@@ -46,6 +46,13 @@ static constexpr size_t kMaxBgThreads = 8;
 
 /**
  * @relates Rpc
+ * @brief Maximum number of crypto threads per process
+ * Ideally BgThread + CrThreads should be 8 but eh
+ */
+static constexpr size_t kMaxCrThreads = 8;
+
+/**
+ * @relates Rpc
  * @brief Maximum number of datapath device ports
  */
 static constexpr size_t kMaxPhyPorts = 16;

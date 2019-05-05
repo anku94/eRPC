@@ -136,6 +136,7 @@ set(SOURCES
   src/nexus_impl/nexus.cc
   src/nexus_impl/nexus_bg_thread.cc
   src/nexus_impl/nexus_sm_thread.cc
+  src/nexus_impl/nexus_cr_thread.cc
   src/rpc_impl/rpc.cc
   src/rpc_impl/rpc_queues.cc
   src/rpc_impl/rpc_rfr.cc
