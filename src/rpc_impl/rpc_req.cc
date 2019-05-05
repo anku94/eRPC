@@ -26,11 +26,12 @@ void Rpc<TTr>::enqueue_request(int session_num, uint8_t req_type,
                                MsgBuffer *req_msgbuf, MsgBuffer *resp_msgbuf,
                                erpc_cont_func_t cont_func, void *tag,
                                size_t cont_etid, bool internal_call) {
+
 #ifdef SECURE_MT
   if (!internal_call) {
     // add to encryption queue and return
     auto req_args = enq_req_args_t(session_num, req_type, req_msgbuf,
-                                   resp_msgbuf, cont_func, tag, get_etid());
+                                   resp_msgbuf, cont_func, tag, cont_etid);
 
     submit_req_encrypt_st(req_args);
     return;
