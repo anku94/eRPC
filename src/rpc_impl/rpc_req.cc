@@ -38,6 +38,8 @@ void Rpc<TTr>::enqueue_request(int session_num, uint8_t req_type,
   }
 #endif
 
+  _unused(internal_call);
+
   // When called from a background thread, enqueue to the foreground thread
   if (unlikely(!in_dispatch())) {
     auto req_args = enq_req_args_t(session_num, req_type, req_msgbuf,
@@ -51,12 +53,15 @@ void Rpc<TTr>::enqueue_request(int session_num, uint8_t req_type,
   assert(session->is_connected());  // User is notified before we disconnect
 
 #ifdef SECURE
+#ifndef SECURE_MT
 
   // Encrypt the buffer
   // Should probably not be done in the dispatch thread
   // TODO: handshake, for now assume shared key is somehow available
 
   // fprintf(stderr, "------> Msg Byte: %d\n", req_msgbuf->buf[0]);
+  //
+  // throw std::runtime_error("dispatch crypto");
 
   int encrypt_res =
       aes_gcm_encrypt(req_msgbuf->buf, req_msgbuf->get_app_data_size());
@@ -67,6 +72,7 @@ void Rpc<TTr>::enqueue_request(int session_num, uint8_t req_type,
 
   assert(encrypt_res >= 0);
 
+#endif
 #endif
 
   // If a free sslot is unavailable, save to session backlog
@@ -182,6 +188,8 @@ void Rpc<TTr>::process_small_req_st(SSlot *sslot, pkthdr_t *pkthdr) {
     req_msgbuf = MsgBuffer(pkthdr, pkthdr->msg_size);
 
 #ifdef SECURE
+    // throw std::runtime_error("not supposed to be called");
+
     int crypto_res =
         aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size());
 
@@ -207,14 +215,6 @@ void Rpc<TTr>::process_small_req_st(SSlot *sslot, pkthdr_t *pkthdr) {
     assert(req_msgbuf.buf != nullptr);
     memcpy(req_msgbuf.get_pkthdr_0(), pkthdr,
            pkthdr->msg_size + sizeof(pkthdr_t));
-
-    // #ifdef SECURE
-    //     int crypto_res =
-    //       aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size());
-
-    //     _unused(crypto_res);
-    //     assert(crypto_res == 0);
-    // #endif
 
     submit_bg_req_st(sslot);
     return;
@@ -323,6 +323,7 @@ void Rpc<TTr>::process_large_req_one_st(SSlot *sslot, const pkthdr_t *pkthdr) {
   if (likely(!req_func.is_background())) {
 #ifdef SECURE
 
+    // throw std::runtime_error("no foreground req");
     int decrypt_res =
         aes_gcm_decrypt(req_msgbuf.buf, req_msgbuf.get_app_data_size());
 

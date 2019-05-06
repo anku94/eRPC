@@ -56,6 +56,8 @@ void req_handler(erpc::ReqHandle *req_handle, void *_context) {
   const erpc::MsgBuffer *req_msgbuf = req_handle->get_req_msgbuf();
   uint8_t resp_byte = req_msgbuf->buf[0];
 
+  // fprintf(stderr, "Req Handler: Req Msgbuf: %d\n", req_msgbuf->buf[0]);
+
   // Use dynamic response
   erpc::MsgBuffer &resp_msgbuf = req_handle->dyn_resp_msgbuf;
   resp_msgbuf = c->rpc->alloc_msg_buffer_or_die(FLAGS_resp_size);
@@ -81,6 +83,9 @@ void app_cont_func(void *_context, void *_tag) {
   if (kAppVerbose) {
     printf("large_rpc_tput: Received response for msgbuf %zu.\n", msgbuf_idx);
   }
+
+  // fprintf(stderr, "Req Msg: %d, Resp Msg: %d\n", c->req_msgbuf[msgbuf_idx].buf[0],
+      // c->resp_msgbuf[msgbuf_idx].buf[0]);
 
   // Measure latency. 1 us granularity is sufficient for large RPC latency.
   double usec = erpc::to_usec(erpc::rdtsc() - c->req_ts[msgbuf_idx],
@@ -271,8 +276,8 @@ int main(int argc, char **argv) {
   erpc::rt_assert(connect_sessions_func != nullptr, "No connect_sessions_func");
 
   erpc::Nexus nexus(erpc::get_uri_for_process(FLAGS_process_id),
-                    FLAGS_numa_node, 0);
-  nexus.register_req_func(kAppReqType, req_handler);
+                    FLAGS_numa_node, 1);
+  nexus.register_req_func(kAppReqType, req_handler, erpc::ReqFuncType::kBackground);
 
   size_t num_threads = FLAGS_process_id == 0 ? FLAGS_num_proc_0_threads
                                              : FLAGS_num_proc_other_threads;
