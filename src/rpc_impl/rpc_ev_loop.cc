@@ -27,7 +27,7 @@ void Rpc<TTr>::run_event_loop_do_one_st() {
     process_bg_queues_enqueue_response_st();
   }
 
-#ifdef CRYPTO_MT
+#ifdef SECURE_MT
   process_cr_queues_enqueue_continuation_st();
 #endif
 
