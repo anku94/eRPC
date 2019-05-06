@@ -101,6 +101,7 @@ void connect_session(ClientContext &c) {
 }
 
 void app_cont_func(void *, void *);
+
 inline void send_req(ClientContext &c) {
   c.start_tsc = erpc::rdtsc();
   c.rpc->enqueue_request(c.session_num_vec[0], kAppReqType, &c.req_msgbuf,
@@ -164,8 +165,8 @@ int main(int argc, char **argv) {
   erpc::rt_assert(FLAGS_numa_node <= 1, "Invalid NUMA node");
 
   erpc::Nexus nexus(erpc::get_uri_for_process(FLAGS_process_id),
-                    FLAGS_numa_node, 0);
-  nexus.register_req_func(kAppReqType, req_handler);
+                    FLAGS_numa_node, 3);
+  nexus.register_req_func(kAppReqType, req_handler, erpc::ReqFuncType::kBackground);
 
   auto t =
       std::thread(FLAGS_process_id == 0 ? server_func : client_func, &nexus);
